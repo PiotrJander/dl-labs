@@ -23,7 +23,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 # Parameters
 learning_rate = 0.001
-training_iters = 20000
+# training_iters = 20000
+training_iters = 5000
 batch_size = 50
 display_step = 100
 # Small epsilon value for the BN transform
@@ -40,17 +41,17 @@ y = tf.placeholder(tf.float32, [None, n_classes])
 
 # ~~~ moments
 
-def my_moments(x, axes):
-    """
-    TODO make axes a list rather than number
-    """
-    with tf.name_scope("my_moments"):
-        mean = tf.reduce_mean(x, axes[0], keep_dims=True)
-        x_minus_mean = x - mean
-        x_minus_mean_squared = tf.square(x_minus_mean)
-        variance = tf.reduce_mean(x_minus_mean_squared, axes[0], keep_dims=True)
-        return mean, variance
-
+# def my_moments(x, axes):
+#     """
+#     TODO make axes a list rather than number
+#     """
+#     with tf.name_scope("my_moments"):
+#         mean = tf.reduce_mean(x, axes[0], keep_dims=True)
+#         x_minus_mean = x - mean
+#         x_minus_mean_squared = tf.square(x_minus_mean)
+#         variance = tf.reduce_mean(x_minus_mean_squared, axes[0], keep_dims=True)
+#         return mean, variance
+#
 # def my_moments(x, axes):
 #     """
 #     Replaces tf.nn.moments
@@ -175,12 +176,12 @@ def conv_net(input):
 
     # Convolutional layers
     with tf.variable_scope("conv_1"):
-        conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
-        # conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
+        # conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
+        conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
 
     with tf.variable_scope("conv_2"):
-        conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
-        # conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
+        # conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
+        conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
     with tf.variable_scope("hidden_1"):
