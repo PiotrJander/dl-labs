@@ -20,6 +20,8 @@ learning_rate = 0.001
 training_iters = 200000
 batch_size = 128
 display_step = 10
+# Small epsilon value for the BN transform
+epsilon = 1e-3
 
 # Network Parameters
 n_input = 784  # MNIST data input (img shape: 28*28)
@@ -30,18 +32,22 @@ x = tf.placeholder(tf.float32, [None, n_input])
 y = tf.placeholder(tf.float32, [None, n_classes])
 
 
-# Create some wrappers for simplicity
-def conv2d(x, W, b, strides=1):
-    # Conv2D wrapper, with bias and relu activation
-    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
-
-
-def maxpool2d(x, k=2):
-    # MaxPool2D wrapper
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
-                          padding='SAME')
+def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
+    """
+    Creates three layers: conv, relu, maxpool
+    """
+    # Create variables
+    weights = tf.get_variable("weights", kernel_shape,
+                              initializer=tf.random_normal_initializer())
+    # Create variable named "biases".
+    biases = tf.get_variable("biases", bias_shape,
+                             initializer=tf.random_normal_initializer())
+    # Convolution Layer
+    input = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1], padding='SAME')
+    # x = tf.nn.bias_add(x, b)
+    input = tf.nn.relu(input + biases)
+    # Max Pooling (down-sampling)
+    return tf.nn.max_pool(input, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 
 # Create model
@@ -49,23 +55,17 @@ def conv_net(x, weights, biases):
     # Reshape input picture
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-    # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k=2)
-
-    # Convolution Layer
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k=2)
+    # Convolutional layers
+    with tf.variable_scope("conv1"):
+        conv1 = conv_relu_maxpool(x, [5, 5, 1, 32], [32])
+    with tf.variable_scope("conv2"):
+        conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
     fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
     fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
     fc1 = tf.nn.relu(fc1)
-    # # Apply Dropout
-    # fc1 = tf.nn.dropout(fc1, dropout)
 
     # Output, class prediction
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
@@ -74,10 +74,10 @@ def conv_net(x, weights, biases):
 
 # Store layers weight & bias
 weights = {
-    # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-    # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+    # # 5x5 conv, 1 input, 32 outputs
+    # 'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+    # # 5x5 conv, 32 inputs, 64 outputs
+    # 'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
     'wd1': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
     # 1024 inputs, 10 outputs (class prediction)
@@ -85,8 +85,8 @@ weights = {
 }
 
 biases = {
-    'bc1': tf.Variable(tf.random_normal([32])),
-    'bc2': tf.Variable(tf.random_normal([64])),
+    # 'bc1': tf.Variable(tf.random_normal([32])),
+    # 'bc2': tf.Variable(tf.random_normal([64])),
     'bd1': tf.Variable(tf.random_normal([1024])),
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
