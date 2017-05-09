@@ -18,7 +18,6 @@ from __future__ import print_function
 from datetime import datetime
 import tensorflow as tf
 
-
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 
@@ -50,11 +49,45 @@ def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
                              initializer=tf.random_normal_initializer())
 
     # Convolution Layer
-    input = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1], padding='SAME')
-    input = tf.nn.relu(input + biases)
+    z = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1],
+                     padding='SAME')
+    out = tf.nn.relu(z + biases)
 
     # Max Pooling (down-sampling)
-    return tf.nn.max_pool(input, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
+    return tf.nn.max_pool(out, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                          padding='SAME')
+
+
+def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2):
+    """
+    Creates three layers: conv, relu, maxpool
+    """
+    # Create variables
+    weights = tf.get_variable("weights", kernel_shape,
+                              initializer=tf.random_normal_initializer())
+    # Create scale and beta (shift) params
+    scale1 = tf.get_variable("scale", [bias_shape],
+                             initializer=tf.constant_initializer(0.0))
+    beta1 = tf.get_variable("beta", [bias_shape],
+                            initializer=tf.constant_initializer(0.0))
+
+    # Convolution Layer
+    z = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1],
+                     padding='SAME')
+
+    # Calculate batch mean and variance
+    batch_mean1, batch_var1 = my_moments(z, [0, 1, 2])
+
+    # Apply the initial batch normalizing transform
+    z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
+
+    # Scale and shift to obtain the final output of the batch normalization
+    # this value is fed into the activation function (here a sigmoid)
+    out = scale1 * z1_hat + beta1
+
+    # Max Pooling (down-sampling)
+    return tf.nn.max_pool(out, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                          padding='SAME')
 
 
 def fully_conn(input, matrix_shape, bias_shape):
@@ -105,9 +138,10 @@ def conv_net(input):
 
     # Convolutional layers
     with tf.variable_scope("conv_1"):
-        conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
+        conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
+
     with tf.variable_scope("conv_2"):
-        conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
+        conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
     with tf.variable_scope("hidden_1"):
@@ -187,5 +221,3 @@ def my_reduce_mean(x, axes):
     for axis in axes:
         mean = tf.reduce_mean(mean, axis, keep_dims=True)
     return mean
-
-
