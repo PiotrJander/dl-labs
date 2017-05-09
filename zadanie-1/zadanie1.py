@@ -28,7 +28,7 @@ training_iters = 5000
 batch_size = 50
 display_step = 100
 # Small epsilon value for the BN transform
-epsilon = 1e-3
+epsilon = 1e-4
 
 # Network Parameters
 n_input = 784  # MNIST data input (img shape: 28*28)
@@ -103,7 +103,7 @@ def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2
                               initializer=tf.random_normal_initializer())
     # Create scale and beta (shift) params
     scale1 = tf.get_variable("scale", bias_shape,
-                             initializer=tf.constant_initializer(0.0))
+                             initializer=tf.constant_initializer(1.0))
     beta1 = tf.get_variable("beta", bias_shape,
                             initializer=tf.constant_initializer(0.0))
 
@@ -150,9 +150,9 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
                               initializer=tf.random_normal_initializer())
     # Create scale and beta (shift) params
     scale1 = tf.get_variable("scale", bias_shape,
-                             initializer=tf.constant_initializer())
+                             initializer=tf.constant_initializer(1.0))
     beta1 = tf.get_variable("beta", bias_shape,
-                            initializer=tf.constant_initializer())
+                            initializer=tf.constant_initializer(0.0))
 
     # Fully connected layer
     z = tf.matmul(input, weights)

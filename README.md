@@ -4,6 +4,12 @@
 
 now try with bigger longer learning
 
+ok it is certain
+my_moments is prob fine
+but batch norm is broken
+
+idea: initialization
+
 
 init weights like in
 
