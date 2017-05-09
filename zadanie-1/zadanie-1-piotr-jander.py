@@ -39,60 +39,58 @@ def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
     # Create variables
     weights = tf.get_variable("weights", kernel_shape,
                               initializer=tf.random_normal_initializer())
-    # Create variable named "biases".
     biases = tf.get_variable("biases", bias_shape,
                              initializer=tf.random_normal_initializer())
+
     # Convolution Layer
     input = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1], padding='SAME')
-    # x = tf.nn.bias_add(x, b)
     input = tf.nn.relu(input + biases)
+
     # Max Pooling (down-sampling)
     return tf.nn.max_pool(input, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 
+def fully_conn(input, matrix_shape, bias_shape):
+    """
+    Creates a fully connected layer
+    """
+    # Creates variables
+    weights = tf.get_variable("weights", matrix_shape,
+                              initializer=tf.random_normal_initializer())
+    biases = tf.get_variable("biases", bias_shape,
+                             initializer=tf.random_normal_initializer())
+
+    # Fully connected layer
+    return tf.add(tf.matmul(input, weights), biases)
+
+
 # Create model
-def conv_net(x, weights, biases):
+def conv_net(input):
     # Reshape input picture
-    x = tf.reshape(x, shape=[-1, 28, 28, 1])
+    input = tf.reshape(input, shape=[-1, 28, 28, 1])
 
     # Convolutional layers
-    with tf.variable_scope("conv1"):
-        conv1 = conv_relu_maxpool(x, [5, 5, 1, 32], [32])
-    with tf.variable_scope("conv2"):
+    with tf.variable_scope("conv_1"):
+        conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
+    with tf.variable_scope("conv_2"):
         conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
-    # Reshape conv2 output to fit fully connected layer input
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
+    with tf.variable_scope("hidden_1"):
+        fc1_inputs_num = 7 * 7 * 64
+        fc1 = tf.reshape(conv2, [-1, fc1_inputs_num])
+        fc1 = fully_conn(fc1, [fc1_inputs_num, 1024], [1024])
+        fc1 = tf.nn.relu(fc1)
 
     # Output, class prediction
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
+    with tf.variable_scope("out"):
+        out = fully_conn(fc1, [1024, n_classes], [n_classes])
+
     return out
 
 
-# Store layers weight & bias
-weights = {
-    # # 5x5 conv, 1 input, 32 outputs
-    # 'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-    # # 5x5 conv, 32 inputs, 64 outputs
-    # 'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-    # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
-    # 1024 inputs, 10 outputs (class prediction)
-    'out': tf.Variable(tf.random_normal([1024, n_classes]))
-}
-
-biases = {
-    # 'bc1': tf.Variable(tf.random_normal([32])),
-    # 'bc2': tf.Variable(tf.random_normal([64])),
-    'bd1': tf.Variable(tf.random_normal([1024])),
-    'out': tf.Variable(tf.random_normal([n_classes]))
-}
-
 # Construct model
-pred = conv_net(x, weights, biases)
+pred = conv_net(x)
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
