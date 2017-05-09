@@ -23,8 +23,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 # Parameters
 learning_rate = 0.001
-# training_iters = 20000
-training_iters = 5000
+training_iters = 20000
+# training_iters = 5000
 batch_size = 50
 display_step = 100
 # Small epsilon value for the BN transform
@@ -202,6 +202,7 @@ def conv_net(input):
 pred = conv_net(x)
 
 # Define loss and optimizer
+# Applies softmax internally
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -234,24 +235,3 @@ if __name__ == '__main__':
 
         print("test accuracy %g" % accuracy.eval(feed_dict={
             x: mnist.test.images, y: mnist.test.labels}))
-
-        # step = 1
-        # # Keep training until reach max iterations
-        # while step * batch_size <= training_iters:
-        #     batch_x, batch_y = mnist.train.next_batch(batch_size)
-        #     # Run optimization op (backprop)
-        #     sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
-        #     if step % display_step == 0:
-        #         # Calculate batch loss and accuracy
-        #         loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
-        #                                                           y: batch_y})
-        #         print("Iter " + str(step * batch_size) + ", Minibatch Loss= " + \
-        #               "{:.6f}".format(loss) + ", Training Accuracy= " + \
-        #               "{:.5f}".format(acc))
-        #     step += 1
-        # print("Optimization Finished!")
-        #
-        # # Calculate accuracy for 256 mnist test images
-        # print("Testing Accuracy:",
-        #       sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
-        #                                     y: mnist.test.labels[:256]}))
