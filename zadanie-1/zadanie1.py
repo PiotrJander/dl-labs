@@ -27,6 +27,7 @@ training_iters = 20000
 # training_iters = 5000
 batch_size = 50
 display_step = 100
+epoch_size = 1000
 # Small epsilon value for the BN transform
 epsilon = 1e-4
 
@@ -220,6 +221,8 @@ if __name__ == '__main__':
     with tf.Session() as sess:
         sess.run(init)
 
+        validation_results = []
+
         for i in range(training_iters):
             batch_x, batch_y = mnist.train.next_batch(batch_size)
             # Run optimization op (backprop)
@@ -231,7 +234,18 @@ if __name__ == '__main__':
                 print("Iter " + str(i) + ", Minibatch Loss= " + \
                       "{:.6f}".format(loss) + ", Training Accuracy= " + \
                       "{:.5f}".format(acc))
-        print("Optimization Finished!")
 
+            # vaildate at the end of every epoch
+            if i % epoch_size == 0:
+                validation_acc = accuracy.eval(feed_dict={x: mnist.validation.images,
+                                                          y: mnist.validation.labels})
+                validation_results.append(validation_acc)
+                print("Validation accuracy %g" % validation_acc)
+
+                if validation_acc > 99.1:
+                    break
+
+        print("Optimization Finished!")
         print("test accuracy %g" % accuracy.eval(feed_dict={
             x: mnist.test.images, y: mnist.test.labels}))
+        print(validation_results)
