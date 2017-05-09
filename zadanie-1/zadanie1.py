@@ -38,6 +38,30 @@ x = tf.placeholder(tf.float32, [None, n_input])
 y = tf.placeholder(tf.float32, [None, n_classes])
 
 
+# ~~~ moments
+
+def my_moments(x, axes):
+    """
+    TODO make axes a list rather than number
+    """
+    with tf.name_scope("my_moments"):
+        mean = my_reduce_mean(x, axes)
+        x_minus_mean = x - mean
+        x_minus_mean_squared = tf.square(x_minus_mean)
+        variance = my_reduce_mean(x_minus_mean_squared, axes)
+        return mean, variance
+
+
+def my_reduce_mean(x, axes):
+    """
+    Takes a list of axes.
+    """
+    mean = x
+    for axis in axes:
+        mean = tf.reduce_mean(mean, axis, keep_dims=True)
+    return mean
+
+
 def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
     """
     Creates three layers: conv, relu, maxpool
@@ -66,9 +90,9 @@ def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2
     weights = tf.get_variable("weights", kernel_shape,
                               initializer=tf.random_normal_initializer())
     # Create scale and beta (shift) params
-    scale1 = tf.get_variable("scale", [bias_shape],
+    scale1 = tf.get_variable("scale", bias_shape,
                              initializer=tf.constant_initializer(0.0))
-    beta1 = tf.get_variable("beta", [bias_shape],
+    beta1 = tf.get_variable("beta", bias_shape,
                             initializer=tf.constant_initializer(0.0))
 
     # Convolution Layer
@@ -112,10 +136,10 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
     weights = tf.get_variable("weights", matrix_shape,
                               initializer=tf.random_normal_initializer())
     # Create scale and beta (shift) params
-    scale1 = tf.get_variable("scale", [bias_shape],
-                             initializer=tf.constant_initializer(0.0))
-    beta1 = tf.get_variable("beta", [bias_shape],
-                            initializer=tf.constant_initializer(0.0))
+    scale1 = tf.get_variable("scale", bias_shape,
+                             initializer=tf.constant_initializer())
+    beta1 = tf.get_variable("beta", bias_shape,
+                            initializer=tf.constant_initializer())
 
     # Fully connected layer
     z = tf.matmul(input, weights)
@@ -197,27 +221,3 @@ if __name__ == '__main__':
         print("Testing Accuracy:",
               sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
                                             y: mnist.test.labels[:256]}))
-
-
-# ~~~ moments
-
-def my_moments(x, axes):
-    """
-    TODO make axes a list rather than number
-    """
-    with tf.name_scope("my_moments"):
-        mean = my_reduce_mean(x, axes)
-        x_minus_mean = x - mean
-        x_minus_mean_squared = tf.square(x_minus_mean)
-        variance = my_reduce_mean(x_minus_mean_squared, axes)
-        return mean, variance
-
-
-def my_reduce_mean(x, axes):
-    """
-    Takes a list of axes.
-    """
-    mean = x
-    for axis in axes:
-        mean = tf.reduce_mean(mean, axis, keep_dims=True)
-    return mean
