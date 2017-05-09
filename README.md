@@ -4,4 +4,6 @@
 
 
 now add batch norm as in the example
-start with fully conn layer
+now on to conv layers
+
+maybe test what we have
