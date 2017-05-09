@@ -1,3 +1,4 @@
-simplest possible: no hidden layers, sigmoid activation funtion on the 10 outputs
+3. but do we insert it at the end
+5. what about the test time bit?
+6. batch norm in conv layer
 
-we classify the image as whichever probability is highest
