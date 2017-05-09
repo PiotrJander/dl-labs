@@ -242,7 +242,7 @@ if __name__ == '__main__':
                 validation_results.append(validation_acc)
                 print("Validation accuracy %g" % validation_acc)
 
-                if validation_acc > 99.1:
+                if validation_acc > 0.991:
                     break
 
         print("Optimization Finished!")
