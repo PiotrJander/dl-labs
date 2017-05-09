@@ -1,14 +1,23 @@
 '''
+TODO opis
+
+Attribution:
+1.
 A Convolutional Network implementation example using TensorFlow library.
 This example is using the MNIST database of handwritten digits
 (http://yann.lecun.com/exdb/mnist/)
 Author: Aymeric Damien
 Project: https://github.com/aymericdamien/TensorFlow-Examples/
+
+2. Implementing Batch Normalization in Tensorflow
+http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
 '''
 
 from __future__ import print_function
 
 import tensorflow as tf
+
+from moments import my_moments
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -61,7 +70,34 @@ def fully_conn(input, matrix_shape, bias_shape):
                              initializer=tf.random_normal_initializer())
 
     # Fully connected layer
-    return tf.add(tf.matmul(input, weights), biases)
+    return tf.matmul(input, weights) + biases
+
+
+def fully_conn_batch_norm(input, matrix_shape, bias_shape):
+    """
+    Creates a fully connected layer
+    """
+    # Creates weight variables
+    weights = tf.get_variable("weights", matrix_shape,
+                              initializer=tf.random_normal_initializer())
+    # Create scale and beta (shift) params
+    scale1 = tf.get_variable("scale", [bias_shape],
+                             initializer=tf.constant_initializer(0.0))
+    beta1 = tf.get_variable("beta", [bias_shape],
+                            initializer=tf.constant_initializer(0.0))
+
+    # Fully connected layer
+    z = tf.matmul(input, weights)
+
+    # Calculate batch mean and variance
+    batch_mean1, batch_var1 = my_moments(z, [0])
+
+    # Apply the initial batch normalizing transform
+    z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
+
+    # Scale and shift to obtain the final output of the batch normalization
+    # this value is fed into the activation function (here a sigmoid)
+    return scale1 * z1_hat + beta1
 
 
 # Create model

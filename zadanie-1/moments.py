@@ -3,15 +3,15 @@ import tensorflow as tf
 import numpy as np
 
 
-def moments(x, axes, keep_dims=True):
+def my_moments(x, axes, keep_dims=True):
     """
     TODO make axes a list rather than number
     """
     with tf.name_scope("my_moments"):
-        mean = tf.reduce_mean(x, axes, keep_dims=keep_dims)
+        mean = tf.reduce_mean(x, axes[0], keep_dims=keep_dims)
         x_minus_mean = x - mean
         x_minus_mean_squared = tf.square(x_minus_mean)
-        variance = tf.reduce_mean(x_minus_mean_squared, axes, keep_dims=keep_dims)
+        variance = tf.reduce_mean(x_minus_mean_squared, axes[0], keep_dims=keep_dims)
         return mean, variance
 
 
@@ -22,7 +22,7 @@ def test_moments():
 
     a = tf.placeholder(dtype=tf.float32)
     tfmoms = tf.nn.moments(a, [1], keep_dims=True)
-    mymoms = moments(a, 1, keep_dims=True)
+    mymoms = my_moments(a, [1], keep_dims=True)
     with tf.Session() as sess:
         summary_writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
         summary_writer.flush()
