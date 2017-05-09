@@ -111,7 +111,8 @@ def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2
                      padding='SAME')
 
     # Calculate batch mean and variance
-    batch_mean1, batch_var1 = my_moments(z, [0, 1, 2])
+    # batch_mean1, batch_var1 = my_moments(z, [0, 1, 2])
+    batch_mean1, batch_var1 = tf.nn.moments(z, [0, 1, 2], keep_dims=True)
 
     # Apply the initial batch normalizing transform
     z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
@@ -156,8 +157,8 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
     z = tf.matmul(input, weights)
 
     # Calculate batch mean and variance
-    batch_mean1, batch_var1 = my_moments(z, [0])
-    # batch_mean1, batch_var1 = tf.nn.moments(z, [0], keep_dims=True)
+    # batch_mean1, batch_var1 = my_moments(z, [0])
+    batch_mean1, batch_var1 = tf.nn.moments(z, [0], keep_dims=True)
 
     # Apply the initial batch normalizing transform
     z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
@@ -174,12 +175,12 @@ def conv_net(input):
 
     # Convolutional layers
     with tf.variable_scope("conv_1"):
-        # conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
-        conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
+        conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
+        # conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
 
     with tf.variable_scope("conv_2"):
-        # conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
-        conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
+        conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
+        # conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
     with tf.variable_scope("hidden_1"):
