@@ -145,7 +145,8 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
     z = tf.matmul(input, weights)
 
     # Calculate batch mean and variance
-    batch_mean1, batch_var1 = my_moments(z, [0])
+    # batch_mean1, batch_var1 = my_moments(z, [0])
+    batch_mean1, batch_var1 = tf.nn.moments(z, [0], keep_dims=True)
 
     # Apply the initial batch normalizing transform
     z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
