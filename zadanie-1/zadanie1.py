@@ -1,4 +1,4 @@
-'''
+"""
 TODO opis
 
 Attribution:
@@ -11,7 +11,7 @@ Project: https://github.com/aymericdamien/TensorFlow-Examples/
 
 2. Implementing Batch Normalization in Tensorflow
 http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
-'''
+"""
 
 from __future__ import print_function
 
@@ -21,8 +21,6 @@ import tensorflow as tf
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
-
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # Parameters
 learning_rate = 0.001
@@ -139,57 +137,55 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 # Initializing the variables
 init = tf.global_variables_initializer()
 
-# Launch the graph
-with tf.Session() as sess:
-    sess.run(init)
-    step = 1
-    # Keep training until reach max iterations
-    while step * batch_size < training_iters:
-        batch_x, batch_y = mnist.train.next_batch(batch_size)
-        # Run optimization op (backprop)
-        sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
-        if step % display_step == 0:
-            # Calculate batch loss and accuracy
-            loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
-                                                              y: batch_y})
-            print("Iter " + str(step * batch_size) + ", Minibatch Loss= " + \
-                  "{:.6f}".format(loss) + ", Training Accuracy= " + \
-                  "{:.5f}".format(acc))
-        step += 1
-    print("Optimization Finished!")
+if __name__ == '__main__':
+    mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
-    # Calculate accuracy for 256 mnist test images
-    print("Testing Accuracy:",
-          sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
-                                        y: mnist.test.labels[:256]}))
+    # Launch the graph
+    with tf.Session() as sess:
+        sess.run(init)
+        step = 1
+        # Keep training until reach max iterations
+        while step * batch_size < training_iters:
+            batch_x, batch_y = mnist.train.next_batch(batch_size)
+            # Run optimization op (backprop)
+            sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
+            if step % display_step == 0:
+                # Calculate batch loss and accuracy
+                loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
+                                                                  y: batch_y})
+                print("Iter " + str(step * batch_size) + ", Minibatch Loss= " + \
+                      "{:.6f}".format(loss) + ", Training Accuracy= " + \
+                      "{:.5f}".format(acc))
+            step += 1
+        print("Optimization Finished!")
+
+        # Calculate accuracy for 256 mnist test images
+        print("Testing Accuracy:",
+              sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
+                                            y: mnist.test.labels[:256]}))
 
 
 # ~~~ moments
 
-def my_moments(x, axes, keep_dims=True):
+def my_moments(x, axes):
     """
     TODO make axes a list rather than number
     """
     with tf.name_scope("my_moments"):
-        mean = tf.reduce_mean(x, axes[0], keep_dims=keep_dims)
+        mean = my_reduce_mean(x, axes)
         x_minus_mean = x - mean
         x_minus_mean_squared = tf.square(x_minus_mean)
-        variance = tf.reduce_mean(x_minus_mean_squared, axes[0], keep_dims=keep_dims)
+        variance = my_reduce_mean(x_minus_mean_squared, axes)
         return mean, variance
 
 
-def test_moments():
-    log_dir = 'out/' + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def my_reduce_mean(x, axes):
+    """
+    Takes a list of axes.
+    """
+    mean = x
+    for axis in axes:
+        mean = tf.reduce_mean(mean, axis, keep_dims=True)
+    return mean
 
-    a_value = [[2, 3], [4, 5]]
 
-    a = tf.placeholder(dtype=tf.float32)
-    tfmoms = tf.nn.moments(a, [1], keep_dims=True)
-    mymoms = my_moments(a, [1], keep_dims=True)
-    with tf.Session() as sess:
-        summary_writer = tf.summary.FileWriter(log_dir, sess.graph)
-        summary_writer.flush()
-
-        (mymean, myvar), (tfmean, tfvar) = sess.run([mymoms, tfmoms], feed_dict={a: a_value})
-        print("mean: ", mymean, tfmean)
-        print("variance: ", myvar, tfvar)
