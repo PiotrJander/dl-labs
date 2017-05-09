@@ -7,3 +7,4 @@ now add batch norm as in the example
 now on to conv layers
 
 maybe test what we have
+-> interesting, adding 

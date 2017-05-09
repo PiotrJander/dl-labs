@@ -115,7 +115,7 @@ def conv_net(input):
     with tf.variable_scope("hidden_1"):
         fc1_inputs_num = 7 * 7 * 64
         fc1 = tf.reshape(conv2, [-1, fc1_inputs_num])
-        fc1 = fully_conn(fc1, [fc1_inputs_num, 1024], [1024])
+        fc1 = fully_conn_batch_norm(fc1, [fc1_inputs_num, 1024], [1024])
         fc1 = tf.nn.relu(fc1)
 
     # Output, class prediction
