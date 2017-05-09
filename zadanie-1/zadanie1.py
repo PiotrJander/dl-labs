@@ -42,7 +42,7 @@ y = tf.placeholder(tf.float32, [None, n_classes])
 
 def my_moments(x, axes):
     """
-    TODO make axes a list rather than number
+    Replaces tf.nn.moments
     """
     with tf.name_scope("my_moments"):
         mean = my_reduce_mean(x, axes)
@@ -162,10 +162,12 @@ def conv_net(input):
 
     # Convolutional layers
     with tf.variable_scope("conv_1"):
-        conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
+        # conv1 = conv_relu_maxpool_batch_norm(input, [5, 5, 1, 32], [32])
+        conv1 = conv_relu_maxpool(input, [5, 5, 1, 32], [32])
 
     with tf.variable_scope("conv_2"):
-        conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
+        # conv2 = conv_relu_maxpool_batch_norm(conv1, [5, 5, 32, 64], [64])
+        conv2 = conv_relu_maxpool(conv1, [5, 5, 32, 64], [64])
 
     # Fully connected layer
     with tf.variable_scope("hidden_1"):
