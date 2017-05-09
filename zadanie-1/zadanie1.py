@@ -42,24 +42,35 @@ y = tf.placeholder(tf.float32, [None, n_classes])
 
 def my_moments(x, axes):
     """
-    Replaces tf.nn.moments
+    TODO make axes a list rather than number
     """
     with tf.name_scope("my_moments"):
-        mean = my_reduce_mean(x, axes)
+        mean = tf.reduce_mean(x, axes[0], keep_dims=True)
         x_minus_mean = x - mean
         x_minus_mean_squared = tf.square(x_minus_mean)
-        variance = my_reduce_mean(x_minus_mean_squared, axes)
+        variance = tf.reduce_mean(x_minus_mean_squared, axes[0], keep_dims=True)
         return mean, variance
 
-
-def my_reduce_mean(x, axes):
-    """
-    Takes a list of axes.
-    """
-    mean = x
-    for axis in axes:
-        mean = tf.reduce_mean(mean, axis, keep_dims=True)
-    return mean
+# def my_moments(x, axes):
+#     """
+#     Replaces tf.nn.moments
+#     """
+#     with tf.name_scope("my_moments"):
+#         mean = my_reduce_mean(x, axes)
+#         x_minus_mean = x - mean
+#         x_minus_mean_squared = tf.square(x_minus_mean)
+#         variance = my_reduce_mean(x_minus_mean_squared, axes)
+#         return mean, variance
+#
+#
+# def my_reduce_mean(x, axes):
+#     """
+#     Takes a list of axes.
+#     """
+#     mean = x
+#     for axis in axes:
+#         mean = tf.reduce_mean(mean, axis, keep_dims=True)
+#     return mean
 
 
 def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
@@ -145,8 +156,8 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
     z = tf.matmul(input, weights)
 
     # Calculate batch mean and variance
-    # batch_mean1, batch_var1 = my_moments(z, [0])
-    batch_mean1, batch_var1 = tf.nn.moments(z, [0], keep_dims=True)
+    batch_mean1, batch_var1 = my_moments(z, [0])
+    # batch_mean1, batch_var1 = tf.nn.moments(z, [0], keep_dims=True)
 
     # Apply the initial batch normalizing transform
     z1_hat = (z - batch_mean1) / tf.sqrt(batch_var1 + epsilon)
