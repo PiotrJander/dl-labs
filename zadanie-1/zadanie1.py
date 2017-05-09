@@ -74,24 +74,24 @@ y = tf.placeholder(tf.float32, [None, n_classes])
 #     return mean
 
 
-def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
-    """
-    Creates three layers: conv, relu, maxpool
-    """
-    # Create variables
-    weights = tf.get_variable("weights", kernel_shape,
-                              initializer=tf.random_normal_initializer())
-    biases = tf.get_variable("biases", bias_shape,
-                             initializer=tf.random_normal_initializer())
-
-    # Convolution Layer
-    z = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1],
-                     padding='SAME')
-    out = tf.nn.relu(z + biases)
-
-    # Max Pooling (down-sampling)
-    return tf.nn.max_pool(out, ksize=[1, k, k, 1], strides=[1, k, k, 1],
-                          padding='SAME')
+# def conv_relu_maxpool(input, kernel_shape, bias_shape, strides=1, k=2):
+#     """
+#     Creates three layers: conv, relu, maxpool
+#     """
+#     # Create variables
+#     weights = tf.get_variable("weights", kernel_shape,
+#                               initializer=tf.truncated_normal_initializer(stddev=0.1))
+#     biases = tf.get_variable("biases", bias_shape,
+#                              initializer=tf.constant_initializer(0.1))
+#
+#     # Convolution Layer
+#     z = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1],
+#                      padding='SAME')
+#     out = tf.nn.relu(z + biases)
+#
+#     # Max Pooling (down-sampling)
+#     return tf.nn.max_pool(out, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+#                           padding='SAME')
 
 
 def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2):
@@ -100,7 +100,7 @@ def conv_relu_maxpool_batch_norm(input, kernel_shape, bias_shape, strides=1, k=2
     """
     # Create variables
     weights = tf.get_variable("weights", kernel_shape,
-                              initializer=tf.random_normal_initializer())
+                              initializer=tf.truncated_normal_initializer(stddev=0.1))
     # Create scale and beta (shift) params
     scale1 = tf.get_variable("scale", bias_shape,
                              initializer=tf.constant_initializer(1.0))
@@ -133,9 +133,9 @@ def fully_conn(input, matrix_shape, bias_shape):
     """
     # Creates variables
     weights = tf.get_variable("weights", matrix_shape,
-                              initializer=tf.random_normal_initializer())
+                              initializer=tf.truncated_normal_initializer(stddev=0.1))
     biases = tf.get_variable("biases", bias_shape,
-                             initializer=tf.random_normal_initializer())
+                             initializer=tf.constant_initializer(0.1))
 
     # Fully connected layer
     return tf.matmul(input, weights) + biases
@@ -147,7 +147,7 @@ def fully_conn_batch_norm(input, matrix_shape, bias_shape):
     """
     # Creates weight variables
     weights = tf.get_variable("weights", matrix_shape,
-                              initializer=tf.random_normal_initializer())
+                              initializer=tf.truncated_normal_initializer(stddev=0.1))
     # Create scale and beta (shift) params
     scale1 = tf.get_variable("scale", bias_shape,
                              initializer=tf.constant_initializer(1.0))
