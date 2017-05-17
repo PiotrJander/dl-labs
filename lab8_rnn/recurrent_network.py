@@ -24,7 +24,8 @@ handle 28 sequences of 28 steps for every sample.
 
 # Parameters
 learning_rate = 0.001
-training_iters = 100000
+# training_iters = 100000
+training_iters = 30000
 batch_size = 128
 display_step = 10
 
@@ -106,7 +107,7 @@ def train():
         test_len = 128
         test_data = mnist.test.images[:test_len].reshape((-1, n_steps, n_input))
         test_label = mnist.test.labels[:test_len]
-        print("Testing Accuracy:", \
+        print("Testing Accuracy:",
             sess.run(accuracy, feed_dict={x: test_data, y: test_label}))
 
 
