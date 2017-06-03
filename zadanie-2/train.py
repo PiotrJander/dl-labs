@@ -31,6 +31,8 @@ heatmaps = []
 for i in xrange(DATA_SET_SIZE):
     images.append(read_and_decode(images_filename_queue))
     heatmaps.append(read_and_decode(heatmaps_filename_queue))
+images = tf.stack(images)
+heatmaps = tf.stack(heatmaps)
 
 images_summary_op = tf.summary.image("images", images[:10])
 heatmaps_summary_op = tf.summary.image("heatmaps", heatmaps[:10])
