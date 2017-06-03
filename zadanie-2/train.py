@@ -63,7 +63,7 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    log, summary = sess.run(log, all_summaries)
+    log, summary = sess.run([log, all_summaries])
     print log
     writer.add_summary(summary)
     writer.close()
