@@ -36,7 +36,7 @@ for _, imagename, heatmapname in zip(xrange(DATA_SET_SIZE), sorted(os.listdir(IM
     print imagename
     print heatmapname
     images.append(read_and_decode(IMAGES_DIR, imagename))
-    images.append(read_and_decode(HEATMAPS_DIR, heatmapname))
+    heatmaps.append(read_and_decode(HEATMAPS_DIR, heatmapname))
 
 images = tf.stack(images)
 heatmaps = tf.stack(heatmaps)
@@ -78,12 +78,12 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    shape = sess.run(tf.shape(images))
-    print shape
+    # shape = sess.run(tf.shape(images))
+    # print shape
 
-    # summary = sess.run(all_summaries)
-    # writer.add_summary(summary)
-    # writer.close()
+    summary = sess.run(all_summaries)
+    writer.add_summary(summary)
+    writer.close()
 
     # Finish off the filename queue coordinator.
     coord.request_stop()
