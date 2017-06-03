@@ -2,7 +2,7 @@
 import datetime
 import tensorflow as tf
 
-LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y HH:MM")
+LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y %H:%M")
 
 # Make a queue of file names including all the JPEG images files in the relative
 # image directory.
