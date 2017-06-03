@@ -47,3 +47,40 @@ with tf.Session() as sess:
     # Finish off the filename queue coordinator.
     coord.request_stop()
     coord.join(threads)
+
+import io
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+
+def gen_plot():
+    """Create a pyplot plot and save to buffer."""
+    plt.figure()
+    plt.plot([1, 2])
+    plt.title("test")
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    return buf
+
+
+# Prepare the plot
+plot_buf = gen_plot()
+
+# Convert PNG buffer to TF image
+image = tf.image.decode_png(plot_buf.getvalue(), channels=4)
+
+# Add the batch dimension
+image = tf.expand_dims(image, 0)
+
+# Add image summary
+summary_op = tf.summary.image("plot", image)
+
+# Session
+with tf.Session() as sess:
+    # Run
+    summary = sess.run(summary_op)
+    # Write summary
+    writer = tf.summary.FileWriter('./logs/foo')
+    writer.add_summary(summary)
+    writer.close()
