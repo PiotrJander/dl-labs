@@ -48,30 +48,15 @@
 #     coord.request_stop()
 #     coord.join(threads)
 
-import io
-import matplotlib.pyplot as plt
 import tensorflow as tf
 
 
-def gen_plot():
-    """Create a pyplot plot and save to buffer."""
-    plt.figure()
-    plt.plot([1, 2])
-    plt.title("test")
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    return buf
-
-
-# Prepare the plot
-plot_buf = gen_plot()
 
 # Convert PNG buffer to TF image
-image = tf.image.decode_png(plot_buf.getvalue(), channels=4)
+image = tf.random_uniform([1, 100, 100, 3])
 
 # Add the batch dimension
-image = tf.expand_dims(image, 0)
+# image = tf.expand_dims(image, 0)
 
 # Add image summary
 summary_op = tf.summary.image("plot", image)
