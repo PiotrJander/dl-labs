@@ -35,7 +35,7 @@ how about this: we don't shuffle just yet
 
 TODO read just one image and display in tf board; or two
 
-
+ok seems like 
 
 
 
