@@ -23,6 +23,7 @@ _, image_file = image_reader.read(filename_queue)
 image = tf.image.decode_jpeg(image_file)
 image_batch = tf.expand_dims(image, 0)
 summary_op = tf.summary.image("plot", image_batch)
+all_summaries = tf.summary.merge_all()
 
 # Start a new session to show example output.
 with tf.Session() as sess:
@@ -39,7 +40,7 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    summary = sess.run([summary_op])
+    summary = sess.run([all_summaries])
     writer.add_summary(summary)
     writer.close()
 
