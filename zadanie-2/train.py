@@ -1,5 +1,8 @@
 # Typical setup to include TensorFlow.
+import datetime
 import tensorflow as tf
+
+LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y")
 
 # Make a queue of file names including all the JPEG images files in the relative
 # image directory.
@@ -19,10 +22,12 @@ _, image_file = image_reader.read(filename_queue)
 # then use in training.
 image = tf.image.decode_jpeg(image_file)
 
-# summary_op = tf.summary.image("plot", image)
+summary_op = tf.summary.image("plot", image)
 
 # Start a new session to show example output.
 with tf.Session() as sess:
+    writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
+
     # Required to get the filename matching to run.
     tf.initialize_all_variables().run()
 
@@ -31,8 +36,12 @@ with tf.Session() as sess:
     threads = tf.train.start_queue_runners(coord=coord)
 
     # Get an image tensor and print its value.
-    image_tensor = sess.run([image])
-    print(image_tensor)
+    # image_tensor = sess.run([image])
+    # print(image_tensor)
+
+    summary = sess.run([summary_op])
+    writer.add_summary(summary)
+    writer.close()
 
     # Finish off the filename queue coordinator.
     coord.request_stop()

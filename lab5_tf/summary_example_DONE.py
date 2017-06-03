@@ -13,7 +13,7 @@ change LOG_DIR for each new run.
 import tensorflow as tf
 import datetime
 
-LOG_DIR = 'out/' + datetime.datetime.now().strftime("%B-%d-%Y")
+LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y")
 
 a = tf.placeholder(dtype=tf.float32, name='a')
 b = tf.placeholder(dtype=tf.float32, name='b')
