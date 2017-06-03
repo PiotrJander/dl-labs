@@ -78,9 +78,12 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    summary = sess.run(all_summaries)
-    writer.add_summary(summary)
-    writer.close()
+    shape = sess.run(tf.shape(images))
+    print shape
+
+    # summary = sess.run(all_summaries)
+    # writer.add_summary(summary)
+    # writer.close()
 
     # Finish off the filename queue coordinator.
     coord.request_stop()
