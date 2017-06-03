@@ -21,8 +21,8 @@ _, image_file = image_reader.read(filename_queue)
 # Decode the image as a JPEG file, this will turn it into a Tensor which we can
 # then use in training.
 image = tf.image.decode_jpeg(image_file)
-
-summary_op = tf.summary.image("plot", image)
+image_batch = tf.expand_dims(image, 0)
+summary_op = tf.summary.image("plot", image_batch)
 
 # Start a new session to show example output.
 with tf.Session() as sess:
