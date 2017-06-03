@@ -31,6 +31,10 @@ for i in xrange(DATA_SET_SIZE):
     images.append(read_and_decode(images_filename_queue))
     heatmaps.append(read_and_decode(heatmaps_filename_queue))
 
+images_summary_op = tf.summary.image("images", images[:10])
+heatmaps_summary_op = tf.summary.image("heatmaps", heatmaps[:10])
+all_summaries = tf.summary.merge_all()
+
 # Decode the image as a JPEG file, this will turn it into a Tensor which we can
 # then use in training.
 # image = tf.image.decode_jpeg(image_file)
@@ -40,7 +44,7 @@ for i in xrange(DATA_SET_SIZE):
 
 # Start a new session to show example output.
 with tf.Session() as sess:
-    # writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
+    writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
 
     # Required to get the filename matching to run.
     tf.initialize_all_variables().run()
@@ -49,16 +53,13 @@ with tf.Session() as sess:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
-    s1, s2 = sess.run([tf.shape(images), tf.shape(heatmaps)])
-    print s1, s2
-
     # Get an image tensor and print its value.
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    # summary = sess.run(all_summaries)
-    # writer.add_summary(summary)
-    # writer.close()
+    summary = sess.run(all_summaries)
+    writer.add_summary(summary)
+    writer.close()
 
     # Finish off the filename queue coordinator.
     coord.request_stop()
