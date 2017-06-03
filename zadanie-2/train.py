@@ -2,11 +2,14 @@
 import datetime
 import tensorflow as tf
 
-LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y %H:%M")
+LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
+DATA_SET_SIZE = 10593
 
 # Make a queue of file names including all the JPEG images files in the relative
 # image directory.
-filename_queue = tf.train.string_input_producer(
+images_filename_queue = tf.train.string_input_producer(
+    tf.train.match_filenames_once("/data/spacenet2/images/*.jpg"))
+heatmaps_filename_queue = tf.train.string_input_producer(
     tf.train.match_filenames_once("/data/spacenet2/images/*.jpg"))
 
 # Read an entire image file which is required since they're JPEGs, if the images
@@ -16,18 +19,19 @@ image_reader = tf.WholeFileReader()
 
 # Read a whole file from the queue, the first returned value in the tuple is the
 # filename which we are ignoring.
-_, image_file = image_reader.read(filename_queue)
+_, images_files = image_reader.read_up_to(images_filename_queue, DATA_SET_SIZE)
+_, heatmaps_files = image_reader.read_up_to(heatmaps_filename_queue, DATA_SET_SIZE)
 
 # Decode the image as a JPEG file, this will turn it into a Tensor which we can
 # then use in training.
-image = tf.image.decode_jpeg(image_file)
-image_batch = tf.expand_dims(image, 0)
-summary_op = tf.summary.image("plot", image_batch)
-all_summaries = tf.summary.merge_all()
+# image = tf.image.decode_jpeg(image_file)
+# image_batch = tf.expand_dims(image, 0)
+# summary_op = tf.summary.image("plot", image_batch)
+# all_summaries = tf.summary.merge_all()
 
 # Start a new session to show example output.
 with tf.Session() as sess:
-    writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
+    # writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
 
     # Required to get the filename matching to run.
     tf.initialize_all_variables().run()
@@ -36,13 +40,16 @@ with tf.Session() as sess:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
+    s1, s2 = sess.run([tf.shape(images_files), tf.shape(heatmaps_files)])
+    print s1, s2
+
     # Get an image tensor and print its value.
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    summary = sess.run(all_summaries)
-    writer.add_summary(summary)
-    writer.close()
+    # summary = sess.run(all_summaries)
+    # writer.add_summary(summary)
+    # writer.close()
 
     # Finish off the filename queue coordinator.
     coord.request_stop()
