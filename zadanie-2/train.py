@@ -25,8 +25,8 @@ HEATMAPS_DIR = '/data/spacenet2/heatmaps/'
 
 def read_and_decode(folder, f):
     with open(os.path.join(folder, f)) as file:
-        string = base64.b64encode(file.read())
-        return tf.image.decode_jpeg(string, ratio=2)
+        # string = base64.b64encode(file.read())
+        return tf.image.decode_jpeg(file.read(), ratio=2)
 
 
 images = []
