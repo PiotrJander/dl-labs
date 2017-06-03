@@ -1,41 +1,56 @@
 # Typical setup to include TensorFlow.
+import base64
 import datetime
 import tensorflow as tf
+import os
 
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 # DATA_SET_SIZE = 10593
 DATA_SET_SIZE = 20
+IMAGES_DIR = '/data/spacenet2/images/'
+HEATMAPS_DIR = '/data/spacenet2/heatmaps/'
 
 # Make a queue of file names including all the JPEG images files in the relative
 # image directory.
-images_filename_queue = tf.train.string_input_producer(
-    tf.train.match_filenames_once("/data/spacenet2/images/*.jpg"), shuffle=False)
-heatmaps_filename_queue = tf.train.string_input_producer(
-    tf.train.match_filenames_once("/data/spacenet2/heatmaps/*.jpg"), shuffle=False)
+# images_filename_queue = tf.train.string_input_producer(
+#     tf.train.match_filenames_once("/data/spacenet2/images/*.jpg"), shuffle=False)
+# heatmaps_filename_queue = tf.train.string_input_producer(
+#     tf.train.match_filenames_once("/data/spacenet2/heatmaps/*.jpg"), shuffle=False)
 
 # Read an entire image file which is required since they're JPEGs, if the images
 # are too large they could be split in advance to smaller files or use the Fixed
 # reader to split up the file.
-image_reader = tf.WholeFileReader()
-
-log = []
+# image_reader = tf.WholeFileReader()
 
 
-def read_and_decode(queue):
-    name, file = image_reader.read(queue)
-    log.append(name)
-    return tf.image.decode_jpeg(file, ratio=2)
+def read_and_decode(folder, f):
+    with open(os.path.join(folder, f)) as file:
+        string = base64.b64encode(file.read())
+        return tf.image.decode_jpeg(string, ratio=2)
+
+
+images = []
+heatmaps = []
+
+for _, imagename, heatmapname in zip(xrange(DATA_SET_SIZE), os.listdir(IMAGES_DIR), os.listdir(HEATMAPS_DIR)):
+    print imagename
+    print heatmapname
+    images.append(read_and_decode(IMAGES_DIR, imagename))
+    images.append(read_and_decode(HEATMAPS_DIR, heatmapname))
+
+images = tf.stack(images)
+heatmaps = tf.stack(heatmaps)
 
 
 # Read a whole file from the queue, the first returned value in the tuple is the
 # filename which we are ignoring.
-images = []
-heatmaps = []
-for i in xrange(DATA_SET_SIZE):
-    images.append(read_and_decode(images_filename_queue))
-    heatmaps.append(read_and_decode(heatmaps_filename_queue))
-images = tf.stack(images)
-heatmaps = tf.stack(heatmaps)
+# images = []
+# heatmaps = []
+# for i in xrange(DATA_SET_SIZE):
+#     images.append(read_and_decode(images_filename_queue))
+#     heatmaps.append(read_and_decode(heatmaps_filename_queue))
+# images = tf.stack(images)
+# heatmaps = tf.stack(heatmaps)
 
 images_summary_op = tf.summary.image("images", images[:10])
 heatmaps_summary_op = tf.summary.image("heatmaps", heatmaps[:10])
@@ -63,8 +78,7 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    log, summary = sess.run([log, all_summaries])
-    print log
+    summary = sess.run(all_summaries)
     writer.add_summary(summary)
     writer.close()
 
