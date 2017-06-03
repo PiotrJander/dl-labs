@@ -32,7 +32,7 @@ def read_and_decode(folder, f):
 images = []
 heatmaps = []
 
-for _, imagename, heatmapname in zip(xrange(DATA_SET_SIZE), os.listdir(IMAGES_DIR), os.listdir(HEATMAPS_DIR)):
+for _, imagename, heatmapname in zip(xrange(DATA_SET_SIZE), sorted(os.listdir(IMAGES_DIR)), sorted(os.listdir(HEATMAPS_DIR))):
     print imagename
     print heatmapname
     images.append(read_and_decode(IMAGES_DIR, imagename))
