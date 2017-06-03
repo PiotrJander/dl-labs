@@ -20,7 +20,8 @@ image_reader = tf.WholeFileReader()
 
 
 def read_and_decode(queue):
-    file = image_reader.read(queue)[1]
+    name, file = image_reader.read(queue)
+    print "Reading ", name
     return tf.image.decode_jpeg(file, ratio=2)
 
 
