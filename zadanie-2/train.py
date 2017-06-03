@@ -18,10 +18,12 @@ heatmaps_filename_queue = tf.train.string_input_producer(
 # reader to split up the file.
 image_reader = tf.WholeFileReader()
 
+log = []
+
 
 def read_and_decode(queue):
     name, file = image_reader.read(queue)
-    print "Reading ", name
+    log.append(name)
     return tf.image.decode_jpeg(file, ratio=2)
 
 
@@ -61,7 +63,8 @@ with tf.Session() as sess:
     # image_tensor = sess.run([image])
     # print(image_tensor)
 
-    summary = sess.run(all_summaries)
+    log, summary = sess.run(log, all_summaries)
+    print log
     writer.add_summary(summary)
     writer.close()
 
