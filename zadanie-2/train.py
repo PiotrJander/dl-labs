@@ -51,24 +51,32 @@ def setup():
     heatmaps = tf.stack(heatmaps)
 
     with tf.name_scope('input'):
-        # shape = [DATA_SET_SIZE, 325, 325, 3]
+        # train_shape = [train_set_size(), 325, 325, 3]
+        # validate_shape = [VALIDATION_SET_SIZE, 325, 325, 3]
         partitions = create_partition_vector()
 
         train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
         train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
 
-        train_images = tf.Variable(train_images_value, trainable=False)
-        train_heatmaps = tf.Variable(train_heatmaps_value, trainable=False)
-        validate_images = tf.Variable(validate_images_value, trainable=False)
-        validate_heatmaps = tf.Variable(validate_heatmaps_value, trainable=False)
+        # train_images_value1 = tf.constant(
+        #     train_images_value,
+        #     dtype=tf.uint8, shape=)
+
+        def data_var(data):
+            return tf.Variable(data, trainable=False, validate_shape=False)
+
+        train_images = data_var(train_images_value)
+        train_heatmaps = data_var(train_heatmaps_value)
+        validate_images = data_var(validate_images_value)
+        validate_heatmaps = data_var(validate_heatmaps_value)
 
         # images_summary_op = tf.summary.image("train_images", train_images[:10])
         # heatmaps_summary_op = tf.summary.image("train_heatmaps", train_heatmaps[:10])
         # all_summaries = tf.summary.merge_all()
         image_summaries = tf.summary.merge(tf.summary.image(str(i), tensor[:3])
-                         for i, tensor
-                         in enumerate([train_images, train_heatmaps, validate_images, validate_heatmaps])
-                         )
+                                           for i, tensor
+                                           in enumerate([train_images, train_heatmaps, validate_images, validate_heatmaps])
+                                           )
 
         # Where to take the slice for the batch
         # batch_start = tf.placeholder(tf.uint16)
