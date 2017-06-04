@@ -1,3 +1,8 @@
+"""
+TODO should we use queues
+TODO should we randomize batches
+"""
+
 from __future__ import print_function, generators
 
 import datetime
@@ -31,38 +36,60 @@ def create_partition_vector():
     return partitions
 
 
-class Model(object):
-    def __init__(self):
-        super(Model, self).__init__()
+def setup():
+    images = []
+    heatmaps = []
 
-        self.images = []
-        self.heatmaps = []
+    images_filenames = sorted(os.listdir(IMAGES_DIR))
+    heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
+    data = zip(range(DATA_SET_SIZE), images_filenames, heatmaps_filenames)
 
-        self.load_images()
+    for _, image_name, heatmap_name in data:
+        images.append(read_and_decode(IMAGES_DIR, image_name))
+        heatmaps.append(read_and_decode(HEATMAPS_DIR, heatmap_name))
+    images = tf.stack(images)
+    heatmaps = tf.stack(heatmaps)
 
-        with tf.name_scope('input'):
-            # shape = [DATA_SET_SIZE, 325, 325, 3]
-            partitions = create_partition_vector()
+    with tf.name_scope('input'):
+        # shape = [DATA_SET_SIZE, 325, 325, 3]
+        partitions = create_partition_vector()
 
-            train_images_value, validate_images_value = tf.dynamic_partition(self.images, partitions, 2)
-            train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(self.heatmaps, partitions, 2)
+        train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
+        train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
 
-            self.train_images = tf.Variable(train_images_value, trainable=False)
-            self.train_heatmaps = tf.Variable(train_heatmaps_value, trainable=False)
-            self.validate_images = tf.Variable(validate_images_value, trainable=False)
-            self.validate_heatmaps = tf.Variable(validate_heatmaps_value, trainable=False)
+        train_images = tf.Variable(train_images_value, trainable=False)
+        train_heatmaps = tf.Variable(train_heatmaps_value, trainable=False)
+        validate_images = tf.Variable(validate_images_value, trainable=False)
+        validate_heatmaps = tf.Variable(validate_heatmaps_value, trainable=False)
 
-    def load_images(self):
-        images_filenames = sorted(os.listdir(IMAGES_DIR))
-        heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
-        data = zip(range(DATA_SET_SIZE), images_filenames, heatmaps_filenames)
-        for _, image_name, heatmap_name in data:
-            self.images.append(read_and_decode(IMAGES_DIR, image_name))
-            self.heatmaps.append(read_and_decode(HEATMAPS_DIR, heatmap_name))
-        self.images = tf.stack(self.images)
-        self.heatmaps = tf.stack(self.heatmaps)
+        # images_summary_op = tf.summary.image("train_images", train_images[:10])
+        # heatmaps_summary_op = tf.summary.image("train_heatmaps", train_heatmaps[:10])
+        # all_summaries = tf.summary.merge_all()
+        image_summaries = tf.summary.merge(tf.summary.image(str(i), tensor[:3])
+                         for i, tensor
+                         in enumerate([train_images, train_heatmaps, validate_images, validate_heatmaps])
+                         )
 
-    def train(self):
+        # Where to take the slice for the batch
+        # batch_start = tf.placeholder(tf.uint16)
+
         with tf.Session() as sess:
-            # writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
+            writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
             tf.initialize_all_variables().run()
+
+            summary = sess.run(image_summaries)
+            writer.add_summary(summary)
+            writer.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
