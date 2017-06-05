@@ -2,6 +2,7 @@ from __future__ import print_function, generators
 
 import datetime
 import random
+from itertools import count
 
 import tensorflow as tf
 import os
@@ -212,12 +213,12 @@ def read_images():
     heatmaps = []
 
     images_filenames = sorted(os.listdir(IMAGES_DIR))
-    heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
-    data = zip(range(DATA_SET_SIZE), images_filenames, heatmaps_filenames)
+    # heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
+    data = zip(range(DATA_SET_SIZE), images_filenames)
 
-    for _, image_name, heatmap_name in data:
-        images.append(read_image(IMAGES_DIR, image_name))
-        heatmaps.append(read_image(HEATMAPS_DIR, heatmap_name))
+    for _, filename in data:
+        images.append(read_image(IMAGES_DIR, filename))
+        heatmaps.append(read_image(HEATMAPS_DIR, filename))
 
     return images, heatmaps
 
@@ -230,11 +231,11 @@ class Model(object):
             images_initializer = tf.placeholder(dtype=tf.string, shape=[DATA_SET_SIZE])
             heatmaps_initializer = tf.placeholder(dtype=tf.string, shape=[DATA_SET_SIZE])
 
-            def resize(image):
+            def decode(image):
                 return tf.image.decode_jpeg(image, ratio=2)
 
-            images_before_resizing = tf.map_fn(resize, images_initializer)
-            heatmaps_before_resizing = tf.map_fn(resize, heatmaps_initializer)
+            images_before_resizing = tf.map_fn(decode, images_initializer, dtype=tf.uint8)
+            heatmaps_before_resizing = tf.map_fn(decode, heatmaps_initializer, dtype=tf.uint8)
 
             images = tf.image.resize_images(images_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
             heatmaps = tf.image.resize_images(heatmaps_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
@@ -260,10 +261,13 @@ class Model(object):
             validate_images_augmented = augment_many(validate_images)
 
         def initialize_images(sess, images, heatmaps):
-            images_vars = [train_images, train_heatmaps, validate_images, validate_heatmaps]
-            sess.run(
-                [var.initializer for var in images_vars],
-                feed_dict={images_initializer: images, heatmaps_initializer: heatmaps})
+            # images_vars = [train_images, train_heatmaps, validate_images, validate_heatmaps]
+            # sess.run(
+            #     [var.initializer for var in images_vars],
+            #     feed_dict={images_initializer: images, heatmaps_initializer: heatmaps})
+            sess.run(tf.global_variables_initializer(),
+                     feed_dict={images_initializer: images, heatmaps_initializer: heatmaps})
+
         self.initialize_images = initialize_images
 
         with tf.name_scope('batch'):
@@ -288,19 +292,18 @@ class Model(object):
         def train_on_batch(sess, batch_begin):
             sess.run(optimizer, feed_dict={batch_start: batch_begin})
             return sess.run([cost, accuracy], feed_dict={batch_start: batch_begin})
+
         self.train_on_batch = train_on_batch
 
         # validation
 
         tf.get_variable_scope().reuse_variables()
 
-        # TODO use aug valid images
-        validation_pred = conv_net(validate_images)
-        # validation_pred = conv_net(validate_images_augmented)
-        # validation_pred = tf.reshape(
-        #     validation_pred,
-        #     [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        # validation_pred = tf.map_fn(gather_transformations, validation_pred)
+        validation_pred = conv_net(validate_images_augmented)
+        validation_pred = tf.reshape(
+            validation_pred,
+            [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        validation_pred = tf.map_fn(gather_transformations, validation_pred)
         validation_ground_truth = tf.div(validate_heatmaps, 256)
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
@@ -312,26 +315,30 @@ class Model(object):
             loss, acc = sess.run([validation_cost, validation_accuracy])
             print("Validation loss %g" % loss)
             print("Validation accuracy %g" % acc)
+
         self.validate = validate
 
     def train(self):
         images, heatmaps = read_images()
 
+        saver = tf.train.Saver(tf.trainable_variables())
+
         with tf.Session() as sess:
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
-            tf.global_variables_initializer().run()
             self.initialize_images(sess, images, heatmaps)
+            # sess.run(tf.variables_initializer(tf.trainable_variables()))
 
             try:
-                while True:
-                    for i, batch_begin in enumerate(range(0, TRAIN_SET_SIZE - BATCH_SIZE, BATCH_SIZE)):
+                for i in count():
+                    for j, batch_begin in enumerate(range(0, TRAIN_SET_SIZE - BATCH_SIZE, BATCH_SIZE)):
                         loss, acc = self.train_on_batch(sess, batch_begin)
-                        print("Iter " + str(i) + ", Minibatch Loss= " +
+                        print("Iter " + str(j) + ", Minibatch Loss= " +
                               "{:.6f}".format(loss) + ", Training Accuracy= " +
                               "{:.5f}".format(acc))
 
                     # validate after every epoch
                     self.validate(sess)
+                    saver.save(sess, 'save/model', global_step=i)
 
                     # writer.add_summary(summaries)
                     # writer.close()
@@ -339,6 +346,7 @@ class Model(object):
                 # TODO save model
                 print("Optimization Finished!")
                 self.validate(sess)
+                saver.save(sess, 'save/model', global_step=0)
 
 
 if __name__ == '__main__':
