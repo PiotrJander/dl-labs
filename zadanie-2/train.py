@@ -208,6 +208,9 @@ def augment_many(images):
 
 def define_graph():
     with tf.name_scope('input'):
+        images_initializer = tf.placeholder(dtype=tf.uint8, shape=[DATA_SET_SIZE])
+        heatmaps_initializer = tf.placeholder(dtype=tf.uint8, shape=[DATA_SET_SIZE])
+
         images_before_resizing = []
         heatmaps_before_resizing = []
 
