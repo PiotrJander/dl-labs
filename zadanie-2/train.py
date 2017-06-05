@@ -7,13 +7,13 @@ import tensorflow as tf
 import os
 
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
-DATA_SET_SIZE = int(os.environ.get('DATA_SET_SIZE')) or 10593
-VALIDATION_SET_SIZE = int(os.environ.get('VALIDATION_SET_SIZE')) or 593
+DATA_SET_SIZE = int(os.environ.get('DATA_SET_SIZE') or 10593)
+VALIDATION_SET_SIZE = int(os.environ.get('VALIDATION_SET_SIZE') or 593)
 TRAIN_SET_SIZE = DATA_SET_SIZE - VALIDATION_SET_SIZE
 DATA_DIR = os.environ.get('SPACENET') or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
-BATCH_SIZE = int(os.environ.get('BATCH_SIZE')) or 10
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE') or 10)
 AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 IMAGE_SIZE = 256
 CHANNELS = 3
