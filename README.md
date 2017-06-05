@@ -1,7 +1,7 @@
 TODO save model
 TODO rescale to original resolution of 650
 TODO visualize results
-
+TODO add augmentation on a batch
 
 TODO slurm: tell apart short and normal queue?
 TODO opt batch size
@@ -14,9 +14,5 @@ TODO bias in conv nets - with/without batch norm
 TODO how to reuse variables?
 TODO use aws / gcloud, how to train on GPUs using virtual machines
 
-TODO norm images to have zero mean and unit var
-TODO take 256 crops (patches) of images
 
-idea: init data by passing the array as placeholder
-
-this way placeholder not part of the graph
+but: don't augment all images, augment for a batch
