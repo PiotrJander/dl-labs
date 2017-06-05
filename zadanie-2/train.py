@@ -7,14 +7,13 @@ import tensorflow as tf
 import os
 
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
-# DATA_SET_SIZE = 10593
-DATA_SET_SIZE = 20
-VALIDATION_SET_SIZE = 10
+DATA_SET_SIZE = int(os.environ.get('DATA_SET_SIZE')) or 10593
+VALIDATION_SET_SIZE = int(os.environ.get('VALIDATION_SET_SIZE')) or 593
 TRAIN_SET_SIZE = DATA_SET_SIZE - VALIDATION_SET_SIZE
 DATA_DIR = os.environ.get('SPACENET') or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
-BATCH_SIZE = 3
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE')) or 10
 AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 IMAGE_SIZE = 256
 CHANNELS = 3
@@ -298,7 +297,7 @@ def train():
 
         try:
             while True:
-                for i, batch_begin in enumerate(range(0, DATA_SET_SIZE - BATCH_SIZE, BATCH_SIZE)):
+                for i, batch_begin in enumerate(range(0, TRAIN_SET_SIZE - BATCH_SIZE, BATCH_SIZE)):
                     sess.run(optimizer, feed_dict={batch_start: batch_begin})
 
                     if i % 10:
