@@ -32,6 +32,7 @@ AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 IMAGE_SIZE = 256
 CHANNELS = 3
 LEARNING_RATE = 0.001
+IMAGE_TRANSFORMATION_NUMBER = 8
 
 
 def conv(features, in_channels, out_channels, kernel_size=3, name='conv'):
@@ -190,6 +191,23 @@ def augment_image(image):
     return tf.stack(augmented_images)
 
 
+def revert_augmentation(augmented_images):
+    r = tf.image.rot90
+    s = tf.image.flip_left_right
+    revert_functions = [
+        lambda i: i,
+        lambda i: r(r(r(i))),
+        lambda i: r(r(i)),
+        lambda i: r(i),
+        lambda i: s(i),
+        lambda i: r(r(r(s(i)))),
+        lambda i: r(r(s(i))),
+        lambda i: r(s(i))
+    ]
+    reverted = tf.stack(f(i) for f, i in zip(revert_functions, augmented_images))
+    return tf.reduce_mean(reverted, 0)
+
+
 def augment_many(images):
     augmented_batch = tf.map_fn(augment_image, images)
     return tf.reshape(augmented_batch, [-1, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
@@ -234,6 +252,8 @@ with tf.name_scope('input'):
     validate_images.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
     validate_heatmaps.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
+    validate_images_augmented = augment_many(validate_images)
+
 with tf.name_scope('batch'):
     batch_start = tf.placeholder(tf.int32, shape=[])
     batch_images = tf.slice(train_images, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
@@ -243,7 +263,7 @@ with tf.name_scope('batch'):
     augmented_batch_heatmaps = augment_many(batch_heatmaps)
 
 pred = conv_net(augmented_batch_images)
-ground_truth = augmented_batch_heatmaps / 256
+ground_truth = tf.div(augmented_batch_heatmaps, 256)
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
 optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
@@ -251,7 +271,28 @@ optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
 correct_pred = tf.equal(tf.argmax(pred, 3), tf.argmax(ground_truth, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+
+# validation
+
+validation_pred = conv_net(validate_images_augmented)
+validation_pred = tf.reshape(
+    validation_pred,
+    [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+validation_pred = tf.map_fn(revert_augmentation, validation_pred)
+validation_ground_truth = tf.div(validate_heatmaps, 256)
+validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+    logits=validation_pred,
+    labels=validation_ground_truth))
+validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 1))
+validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
+
 # end globals
+
+
+def validate(sess):
+    loss, acc = sess.run([validation_cost, validation_accuracy])
+    print("Validation loss %g" % loss)
+    print("Validation accuracy %g" % acc)
 
 
 def train():
@@ -271,15 +312,14 @@ def train():
                               "{:.5f}".format(acc))
 
                 # validate after every epoch
-                validation_acc = accuracy.eval()
-                print("Validation accuracy %g" % validation_acc)
+                validate(sess)
 
             # writer.add_summary(summaries)
             # writer.close()
         except KeyboardInterrupt:
             # TODO save model
             print("Optimization Finished!")
-            # TODO validate at the end
+            validate(sess)
 
 
 if __name__ == '__main__':

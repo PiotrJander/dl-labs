@@ -1,19 +1,5 @@
-now:
+TODO test reverting images
+TODO save model
+TODO rescale to original resolution of 650
+TODO visualize results
 
-take batch
-
-apply transforms
-
-pass batch start
-
-every epoch validate
-
-when doing inference, take all transform and average
-
-
-TODO ctrl C interrupt
-
-
-
-
-augmented validation, run pred, resize, revert!, average, evaluate
