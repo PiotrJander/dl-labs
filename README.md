@@ -1,10 +1,19 @@
-okay now we have data
+now:
 
-we take batches of N, say 2 or 50
+take batch
 
-first write those batches to tboard
+apply transforms
 
-we want to resize images to 256
+pass batch start
 
-but when we compute accuracy, resize back
+every epoch validate
 
+when doing inference, take all transform and average
+
+
+TODO ctrl C interrupt
+
+
+
+
+augmented validation, run pred, resize, revert!, average, evaluate

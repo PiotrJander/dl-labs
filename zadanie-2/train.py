@@ -2,9 +2,11 @@
 TODO should we use queues
 TODO should we randomize batches
 TODO do I leverage tensor shape type checking?
-TODO name scope vs var scope
+TODO name scope vs var scope; need all explicit var scopes?
 TODO For conv transpose use kernel size divisible by stride, or (possibly better option) upsample by nearest neighbour and then do regular convolution
 TODO bias in conv nets - with/without batch norm
+TODO tensor type annotations in tf functions
+TODO don't hardcode batch size so that I can run on validation set
 
 TODO conv heatmaps: give 3 dims, one hot = true
 """
@@ -26,8 +28,10 @@ DATA_DIR = os.environ['SPACENET'] or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
 BATCH_SIZE = 3
+AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 IMAGE_SIZE = 256
 CHANNELS = 3
+LEARNING_RATE = 0.001
 
 
 def conv(features, in_channels, out_channels, kernel_size=3, name='conv'):
@@ -169,7 +173,31 @@ def create_partition_vector():
     return partitions
 
 
-def setup():
+def augment_image(image):
+    r = tf.image.rot90
+    s = tf.image.flip_left_right
+    functions = [
+        lambda i: i,
+        lambda i: r(i),
+        lambda i: r(r(i)),
+        lambda i: r(r(r(i))),
+        lambda i: s(i),
+        lambda i: r(s(i)),
+        lambda i: r(r(s(i))),
+        lambda i: r(r(r(s(i))))
+    ]
+    augmented_images = map(lambda f: f(image), functions)
+    return tf.stack(augmented_images)
+
+
+def augment_many(images):
+    augmented_batch = tf.map_fn(augment_image, images)
+    return tf.reshape(augmented_batch, [-1, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+
+
+# start globals
+
+with tf.name_scope('input'):
     images_before_resizing = []
     heatmaps_before_resizing = []
 
@@ -186,57 +214,75 @@ def setup():
     images = tf.image.resize_images(images_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
     heatmaps = tf.image.resize_images(heatmaps_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
 
-    with tf.name_scope('input'):
-        partitions = create_partition_vector()
+    partitions = create_partition_vector()
 
-        train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
-        train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
+    train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
+    train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
 
-        def data_var(init):
-            return tf.Variable(init, trainable=False, validate_shape=False)
 
-        train_images = data_var(train_images_value)
-        train_heatmaps = data_var(train_heatmaps_value)
-        validate_images = data_var(validate_images_value)
-        validate_heatmaps = data_var(validate_heatmaps_value)
+    def data_var(init):
+        return tf.Variable(init, trainable=False, validate_shape=False)
 
-        train_images.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        train_heatmaps.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        validate_images.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        validate_heatmaps.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-        batch_start = tf.placeholder(tf.int32, shape=[])
-        batch_images = tf.slice(train_images, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        batch_heatmaps = tf.slice(train_heatmaps, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    train_images = data_var(train_images_value)
+    train_heatmaps = data_var(train_heatmaps_value)
+    validate_images = data_var(validate_images_value)
+    validate_heatmaps = data_var(validate_heatmaps_value)
 
-        graph = conv_net(batch_images)
+    train_images.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    train_heatmaps.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    validate_images.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    validate_heatmaps.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-        with tf.Session() as sess:
-            # writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
-            tf.initialize_all_variables().run()
+with tf.name_scope('batch'):
+    batch_start = tf.placeholder(tf.int32, shape=[])
+    batch_images = tf.slice(train_images, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    batch_heatmaps = tf.slice(train_heatmaps, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-            sess.run(graph, feed_dict={batch_start: 1})
+    augmented_batch_images = augment_many(batch_images)
+    augmented_batch_heatmaps = augment_many(batch_heatmaps)
 
-            # summary = sess.run(image_summaries('second'), feed_dict={batch_start: 8})
-            # writer.add_summary(summary)
+pred = conv_net(augmented_batch_images)
+ground_truth = augmented_batch_heatmaps / 256
+
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
+optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
+
+correct_pred = tf.equal(tf.argmax(pred, 3), tf.argmax(ground_truth, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+# end globals
+
+
+def train():
+    with tf.Session() as sess:
+        writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
+        tf.initialize_all_variables().run()
+
+        try:
+            while True:
+                for i, batch_begin in enumerate(range(0, DATA_SET_SIZE - BATCH_SIZE, BATCH_SIZE)):
+                    sess.run(optimizer, feed_dict={batch_start: batch_begin})
+
+                    if i % 10:
+                        loss, acc = sess.run([cost, accuracy], feed_dict={batch_start: batch_begin})
+                        print("Iter " + str(i) + ", Minibatch Loss= " + \
+                              "{:.6f}".format(loss) + ", Training Accuracy= " + \
+                              "{:.5f}".format(acc))
+
+                # validate after every epoch
+                validation_acc = accuracy.eval()
+                print("Validation accuracy %g" % validation_acc)
+
+            # writer.add_summary(summaries)
             # writer.close()
+        except KeyboardInterrupt:
+            # TODO save model
+            print("Optimization Finished!")
+            # TODO validate at the end
 
 
 if __name__ == '__main__':
-    setup()
-
-
-
-# # Construct model
-# pred = conv_net(x)
-#
-# # Define loss and optimizer
-# # Applies softmax internally
-# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
-# optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-#
-# # Evaluate model
-# correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-# accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+    train()
 
 
