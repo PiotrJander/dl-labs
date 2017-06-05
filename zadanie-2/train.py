@@ -1,16 +1,3 @@
-"""
-TODO should we use queues
-TODO should we randomize batches
-TODO do I leverage tensor shape type checking?
-TODO name scope vs var scope; need all explicit var scopes?
-TODO For conv transpose use kernel size divisible by stride, or (possibly better option) upsample by nearest neighbour and then do regular convolution
-TODO bias in conv nets - with/without batch norm
-TODO tensor type annotations in tf functions
-TODO don't hardcode batch size so that I can run on validation set
-
-TODO conv heatmaps: give 3 dims, one hot = true
-"""
-
 from __future__ import print_function, generators
 
 import datetime
@@ -24,7 +11,7 @@ LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 DATA_SET_SIZE = 20
 VALIDATION_SET_SIZE = 10
 TRAIN_SET_SIZE = DATA_SET_SIZE - VALIDATION_SET_SIZE
-DATA_DIR = os.environ['SPACENET'] or '/data/spacenet2/'
+DATA_DIR = os.environ.get('SPACENET') or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
 BATCH_SIZE = 3
@@ -80,7 +67,11 @@ def upconv(features, in_channels, out_channels, out_size, name='upconv'):
         stride = 2
         weights = tf.get_variable("weights", [3, 3, out_channels, in_channels],
                                   initializer=tf.truncated_normal_initializer(stddev=0.1))
-        return tf.nn.conv2d_transpose(features, weights, output_shape=[BATCH_SIZE, out_size, out_size, 64], strides=[1, stride, stride, 1], padding='SAME')
+        return tf.nn.conv2d_transpose(
+            features, weights,
+            output_shape=[tf.shape(features)[0], out_size, out_size, 64],
+            strides=[1, stride, stride, 1],
+            padding='SAME')
 
 
 def bn_upconv_relu(features, in_channels, out_channels, out_size, name='bn_upconv_relu'):
@@ -115,7 +106,7 @@ def concat_bn_conv_relu_2_bn_upconv_relu(features_down, features_up, out_size, n
 
 
 def convout(features, in_channels, name='convout'):
-    return conv(features, in_channels, 1, kernel_size=1, name=name)
+    return conv(features, in_channels, 3, kernel_size=1, name=name)
 
 
 def conv_net(features):
@@ -191,7 +182,7 @@ def augment_image(image):
     return tf.stack(augmented_images)
 
 
-def revert_augmentation(augmented_images):
+def revert_transformations(augmented_images):
     r = tf.image.rot90
     s = tf.image.flip_left_right
     revert_functions = [
@@ -200,12 +191,15 @@ def revert_augmentation(augmented_images):
         lambda i: r(r(i)),
         lambda i: r(i),
         lambda i: s(i),
-        lambda i: r(r(r(s(i)))),
-        lambda i: r(r(s(i))),
-        lambda i: r(s(i))
+        lambda i: s(r(r(r(i)))),
+        lambda i: s(r(r(i))),
+        lambda i: s(r(i))
     ]
-    reverted = tf.stack(f(i) for f, i in zip(revert_functions, augmented_images))
-    return tf.reduce_mean(reverted, 0)
+    return tf.stack([f(i) for f, i in zip(revert_functions, tf.unstack(augmented_images))])
+
+
+def gather_transformations(augmented_images):
+    return tf.reduce_mean(revert_transformations(augmented_images), 0)
 
 
 def augment_many(images):
@@ -213,92 +207,94 @@ def augment_many(images):
     return tf.reshape(augmented_batch, [-1, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
 
-# start globals
+def define_graph():
+    with tf.name_scope('input'):
+        images_before_resizing = []
+        heatmaps_before_resizing = []
 
-with tf.name_scope('input'):
-    images_before_resizing = []
-    heatmaps_before_resizing = []
+        images_filenames = sorted(os.listdir(IMAGES_DIR))
+        heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
+        data = zip(range(DATA_SET_SIZE), images_filenames, heatmaps_filenames)
 
-    images_filenames = sorted(os.listdir(IMAGES_DIR))
-    heatmaps_filenames = sorted(os.listdir(HEATMAPS_DIR))
-    data = zip(range(DATA_SET_SIZE), images_filenames, heatmaps_filenames)
+        for _, image_name, heatmap_name in data:
+            images_before_resizing.append(read_and_decode(IMAGES_DIR, image_name))
+            heatmaps_before_resizing.append(read_and_decode(HEATMAPS_DIR, heatmap_name))
+        images_before_resizing = tf.stack(images_before_resizing)
+        heatmaps_before_resizing = tf.stack(heatmaps_before_resizing)
 
-    for _, image_name, heatmap_name in data:
-        images_before_resizing.append(read_and_decode(IMAGES_DIR, image_name))
-        heatmaps_before_resizing.append(read_and_decode(HEATMAPS_DIR, heatmap_name))
-    images_before_resizing = tf.stack(images_before_resizing)
-    heatmaps_before_resizing = tf.stack(heatmaps_before_resizing)
+        images = tf.image.resize_images(images_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
+        heatmaps = tf.image.resize_images(heatmaps_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
 
-    images = tf.image.resize_images(images_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
-    heatmaps = tf.image.resize_images(heatmaps_before_resizing, [IMAGE_SIZE, IMAGE_SIZE])
+        partitions = create_partition_vector()
 
-    partitions = create_partition_vector()
+        train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
+        train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
 
-    train_images_value, validate_images_value = tf.dynamic_partition(images, partitions, 2)
-    train_heatmaps_value, validate_heatmaps_value = tf.dynamic_partition(heatmaps, partitions, 2)
+        def data_var(init):
+            return tf.Variable(init, trainable=False, validate_shape=False)
 
+        train_images = data_var(train_images_value)
+        train_heatmaps = data_var(train_heatmaps_value)
+        validate_images = data_var(validate_images_value)
+        validate_heatmaps = data_var(validate_heatmaps_value)
 
-    def data_var(init):
-        return tf.Variable(init, trainable=False, validate_shape=False)
+        train_images.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        train_heatmaps.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        validate_images.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        validate_heatmaps.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
+        validate_images_augmented = augment_many(validate_images)
 
-    train_images = data_var(train_images_value)
-    train_heatmaps = data_var(train_heatmaps_value)
-    validate_images = data_var(validate_images_value)
-    validate_heatmaps = data_var(validate_heatmaps_value)
+    with tf.name_scope('batch'):
+        batch_start = tf.placeholder(tf.int32, shape=[])
+        batch_images = tf.slice(train_images, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        batch_heatmaps = tf.slice(train_heatmaps, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-    train_images.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-    train_heatmaps.set_shape([TRAIN_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-    validate_images.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-    validate_heatmaps.set_shape([VALIDATION_SET_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        augmented_batch_images = augment_many(batch_images)
+        augmented_batch_heatmaps = augment_many(batch_heatmaps)
 
-    validate_images_augmented = augment_many(validate_images)
+    pred = conv_net(augmented_batch_images)
+    ground_truth = tf.div(augmented_batch_heatmaps, 256)
 
-with tf.name_scope('batch'):
-    batch_start = tf.placeholder(tf.int32, shape=[])
-    batch_images = tf.slice(train_images, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-    batch_heatmaps = tf.slice(train_heatmaps, [batch_start, 0, 0, 0], [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
+    optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
 
-    augmented_batch_images = augment_many(batch_images)
-    augmented_batch_heatmaps = augment_many(batch_heatmaps)
+    correct_pred = tf.equal(tf.argmax(pred, 3), tf.argmax(ground_truth, 3))
+    accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-pred = conv_net(augmented_batch_images)
-ground_truth = tf.div(augmented_batch_heatmaps, 256)
+    # return optimizer, batch_start, cost, accuracy
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
-optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
+    # validation
 
-correct_pred = tf.equal(tf.argmax(pred, 3), tf.argmax(ground_truth, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+    tf.get_variable_scope().reuse_variables()
 
+    validation_pred = conv_net(validate_images_augmented)
+    validation_pred = tf.reshape(
+        validation_pred,
+        [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+    validation_pred = tf.map_fn(gather_transformations, validation_pred)
+    validation_ground_truth = tf.div(validate_heatmaps, 256)
+    validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        logits=validation_pred,
+        labels=validation_ground_truth))
+    validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
+    validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
 
-# validation
+    def validate(sess):
+        loss, acc = sess.run([validation_cost, validation_accuracy])
+        print("Validation loss %g" % loss)
+        print("Validation accuracy %g" % acc)
 
-validation_pred = conv_net(validate_images_augmented)
-validation_pred = tf.reshape(
-    validation_pred,
-    [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-validation_pred = tf.map_fn(revert_augmentation, validation_pred)
-validation_ground_truth = tf.div(validate_heatmaps, 256)
-validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-    logits=validation_pred,
-    labels=validation_ground_truth))
-validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 1))
-validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
-
-# end globals
-
-
-def validate(sess):
-    loss, acc = sess.run([validation_cost, validation_accuracy])
-    print("Validation loss %g" % loss)
-    print("Validation accuracy %g" % acc)
+    return optimizer, batch_start, cost, accuracy, validate
 
 
 def train():
+    optimizer, batch_start, cost, accuracy, validate = define_graph()
+    # optimizer, batch_start, cost, accuracy = define_graph()
+
     with tf.Session() as sess:
         writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
-        tf.initialize_all_variables().run()
+        tf.global_variables_initializer().run()
 
         try:
             while True:
@@ -307,8 +303,8 @@ def train():
 
                     if i % 10:
                         loss, acc = sess.run([cost, accuracy], feed_dict={batch_start: batch_begin})
-                        print("Iter " + str(i) + ", Minibatch Loss= " + \
-                              "{:.6f}".format(loss) + ", Training Accuracy= " + \
+                        print("Iter " + str(i) + ", Minibatch Loss= " +
+                              "{:.6f}".format(loss) + ", Training Accuracy= " +
                               "{:.5f}".format(acc))
 
                 # validate after every epoch
