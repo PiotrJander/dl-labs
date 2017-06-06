@@ -8,3 +8,8 @@ TODO name scope vs var scope; need all explicit var scopes?
 TODO For conv transpose use kernel size divisible by stride, or (possibly better option) upsample by nearest neighbour and then do regular convolution
 TODO bias in conv nets - with/without batch norm
 TODO how to reuse variables?
+
+how to validate on the validation set?
+can only validate one image per run
+
+so iterate and combine results

@@ -14,7 +14,7 @@ TRAIN_SET_SIZE = DATA_SET_SIZE - VALIDATION_SET_SIZE
 DATA_DIR = os.environ.get('SPACENET') or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
-BATCH_SIZE = int(os.environ.get('BATCH_SIZE') or 10)
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE') or 2)
 AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 HALF_IMAGE_SIZE = 325
 IMAGE_SIZE = 256
@@ -88,7 +88,7 @@ def bn_upconv_relu(features, in_channels, out_channels, out_size, name='bn_upcon
 
 def concat(features_down, features_up, name='concat'):
     with tf.name_scope(name):
-        return tf.concat([features_down, features_up], 3)
+        return tf.concat([features_down, features_up], axis=3)
 
 
 def concat_bn_conv_relu_2(features_down, features_up, name='concat_bn_conv_relu_2'):
@@ -188,7 +188,7 @@ def revert_transformations(augmented_images):
 
 
 def gather_transformations(augmented_images):
-    return tf.reduce_mean(revert_transformations(augmented_images), 0)
+    return tf.expand_dims(tf.reduce_mean(revert_transformations(augmented_images), 0), 0)
 
 
 def augment_many(images):
@@ -200,7 +200,7 @@ def get_file_names():
     images_filenames = os.listdir(IMAGES_DIR)
     random.shuffle(images_filenames)
     train = images_filenames[:TRAIN_SET_SIZE]
-    validate = images_filenames[TRAIN_SET_SIZE:]
+    validate = images_filenames[TRAIN_SET_SIZE:TRAIN_SET_SIZE+VALIDATION_SET_SIZE]
     assert len(validate) == VALIDATION_SET_SIZE
 
     train_images_names = [os.path.join(IMAGES_DIR, name) for name in train]
@@ -244,13 +244,23 @@ class Model(object):
         validate_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
         validate_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-        num_preprocess_threads = 2
-        min_queue_examples = 64
-        batch_images, batch_heatmaps = tf.train.batch(
-            [train_image, train_heatmap],
-            batch_size=BATCH_SIZE,
-            num_threads=num_preprocess_threads,
-            capacity=min_queue_examples + 3 * BATCH_SIZE)
+        # num_preprocess_threads = 2
+        # min_queue_examples = 64
+        # batch_images = tf.train.batch(
+        #     [train_image],
+        #     batch_size=BATCH_SIZE,
+        #     num_threads=num_preprocess_threads,
+        #     capacity=min_queue_examples + 3 * BATCH_SIZE)
+        #
+        # batch_heatmaps = tf.train.batch(
+        #     [train_heatmap],
+        #     batch_size=BATCH_SIZE,
+        #     num_threads=num_preprocess_threads,
+        #     capacity=min_queue_examples + 3 * BATCH_SIZE)
+
+        # batch of size 1
+        batch_images = tf.expand_dims(train_image, 0)
+        batch_heatmaps = tf.expand_dims(train_heatmap, 0)
 
         augmented_batch_images = augment_many(batch_images)
         augmented_batch_heatmaps = augment_many(batch_heatmaps)
@@ -270,31 +280,49 @@ class Model(object):
 
         self.train_on_batch = train_on_batch
 
-        # # validation
+        # validation
+
+        tf.get_variable_scope().reuse_variables()
+
+        # batch_validate_images = tf.train.batch(
+        #     [validate_image],
+        #     batch_size=1,
+        #     num_threads=num_preprocess_threads,
+        #     capacity=min_queue_examples + 3)
         #
-        # tf.get_variable_scope().reuse_variables()
-        #
-        # validation_pred = conv_net(validate_images_augmented)
-        # validation_pred = tf.reshape(
-        #     validation_pred,
-        #     [-1, IMAGE_TRANSFORMATION_NUMBER, IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        # validation_pred = tf.map_fn(gather_transformations, validation_pred)
-        # validation_ground_truth = tf.div(validate_heatmaps, 256)
-        # validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
-        #     logits=validation_pred,
-        #     labels=validation_ground_truth))
-        # validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
-        # validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
-        #
-        # def validate(sess):
-        #     loss, acc = sess.run([validation_cost, validation_accuracy])
-        #     print("Validation loss %g" % loss)
-        #     print("Validation accuracy %g" % acc)
-        #
-        # self.validate = validate
+        # batch_validate_heatmaps = tf.train.batch(
+        #     [validate_heatmap],
+        #     batch_size=1,
+        #     num_threads=num_preprocess_threads,
+        #     capacity=min_queue_examples + 3)
+
+        # batch of size 1
+        batch_validate_images = tf.expand_dims(validate_image, 0)
+        batch_validate_heatmaps = tf.expand_dims(validate_heatmap, 0)
+
+        validation_pred = gather_transformations(conv_net(augment_many(batch_validate_images)))
+        validation_ground_truth = tf.div(batch_validate_heatmaps, 256)
+
+        validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+            logits=validation_pred,
+            labels=validation_ground_truth))
+        validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
+        validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
+
+        validation_correct_pred_all = tf.reduce_mean([validation_cost for _ in range(VALIDATION_SET_SIZE)])
+        validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
+
+        def validate(sess):
+            loss, acc = sess.run([validation_correct_pred_all, validation_accuracy_all])
+            print("Validation loss %g" % loss)
+            print("Validation accuracy %g" % acc)
+
+        self.validate = validate
 
     def train(self):
         saver = tf.train.Saver(tf.trainable_variables())
+        if not os.path.exists('save'):
+            os.makedirs('save')
 
         with tf.Session() as sess:
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
@@ -312,7 +340,7 @@ class Model(object):
                               "{:.5f}".format(acc))
 
                     # validate after every epoch
-                    # self.validate(sess)
+                    self.validate(sess)
 
                     if i % 10 == 0:
                         saver.save(sess, 'save/model', global_step=i)
@@ -322,7 +350,7 @@ class Model(object):
             except KeyboardInterrupt:
                 # TODO save model
                 print("Optimization Finished!")
-                # self.validate(sess)
+                self.validate(sess)
                 saver.save(sess, 'save/model', global_step=0)
                 coord.request_stop()
                 coord.join(threads)
