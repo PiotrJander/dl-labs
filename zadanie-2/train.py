@@ -335,12 +335,14 @@ class Model(object):
                 for i in count():
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
                         loss, acc = self.train_on_batch(sess)
-                        print("Iter " + str(j) + ", Minibatch Loss= " +
-                              "{:.6f}".format(loss) + ", Training Accuracy= " +
-                              "{:.5f}".format(acc))
+                        if j % 20:
+                            print("Iter " + str(j) + ", Minibatch Loss= " +
+                                  "{:.6f}".format(loss) + ", Training Accuracy= " +
+                                  "{:.5f}".format(acc))
 
-                    # validate after every epoch
-                    self.validate(sess)
+                    # validate after every five epochs
+                    if i % 5 == 0:
+                        self.validate(sess)
 
                     if i % 10 == 0:
                         saver.save(sess, 'save/model', global_step=i)
