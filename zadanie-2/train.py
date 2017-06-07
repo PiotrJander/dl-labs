@@ -23,6 +23,28 @@ LEARNING_RATE = 0.001
 IMAGE_TRANSFORMATION_NUMBER = 8
 
 
+class ImagesHeatmaps(object):
+    def __init__(self, images=None, heatmaps=None):
+        super(ImagesHeatmaps, self).__init__()
+
+        self.images = images or {}
+        self.heatmaps = heatmaps or {}
+
+    def map(self, f):
+        return ImagesHeatmaps(f(self.images), f(self.heatmaps))
+
+
+class TrainValidate(object):
+    def __init__(self, train=None, validate=None):
+        super(TrainValidate, self).__init__()
+
+        self.train = train or ImagesHeatmaps()
+        self.validate = validate or ImagesHeatmaps()
+
+    def map(self, f):
+        return TrainValidate(self.train.map(f), self.validate.map(f))
+
+
 def conv(features, in_channels, out_channels, kernel_size=3, name='conv'):
     with tf.variable_scope(name):
         stride = 1
@@ -196,46 +218,71 @@ def get_file_names():
     validate = images_filenames[TRAIN_SET_SIZE:TRAIN_SET_SIZE+VALIDATION_SET_SIZE]
     assert len(validate) == VALIDATION_SET_SIZE
 
-    train_images_names = [os.path.join(IMAGES_DIR, name) for name in train]
-    train_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in train]
-    validate_images_names = [os.path.join(IMAGES_DIR, name) for name in validate]
-    validate_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in validate]
+    filenames = TrainValidate()
+    filenames.train.images = [os.path.join(IMAGES_DIR, name) for name in train]
+    filenames.train.heatmaps = [os.path.join(HEATMAPS_DIR, name) for name in train]
+    filenames.validate.images = [os.path.join(IMAGES_DIR, name) for name in validate]
+    filenames.validate.heatmaps = [os.path.join(HEATMAPS_DIR, name) for name in validate]
 
-    return train_images_names, train_heatmaps_names, validate_images_names, validate_heatmaps_names
+    # filenames = {
+    #     'train': {
+    #         'images': [os.path.join(IMAGES_DIR, name) for name in train],
+    #         'heatmaps': [os.path.join(HEATMAPS_DIR, name) for name in train]
+    #     },
+    #     'validate': {
+    #         ''
+    #     }
+    # }
+
+    # train_images_names = [os.path.join(IMAGES_DIR, name) for name in train]
+    # train_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in train]
+    # validate_images_names = [os.path.join(IMAGES_DIR, name) for name in validate]
+    # validate_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in validate]
+
+    return filenames
 
 
 class Model(object):
     def __init__(self):
         super(Model, self).__init__()
 
-        train_images_names, train_heatmaps_names, validate_images_names, validate_heatmaps_names = get_file_names()
+        filenames = get_file_names()
 
-        train_images_queue = tf.train.string_input_producer(train_images_names, shuffle=False)
-        train_heatmaps_queue = tf.train.string_input_producer(train_heatmaps_names, shuffle=False)
-        validate_images_queue = tf.train.string_input_producer(validate_images_names, shuffle=False)
-        validate_heatmaps_queue = tf.train.string_input_producer(validate_heatmaps_names, shuffle=False)
+        queue = filenames.map(lambda names: tf.train.string_input_producer(names, shuffle=False))
+
+        # train_images_queue = tf.train.string_input_producer(train_images_names, shuffle=False)
+        # train_heatmaps_queue = tf.train.string_input_producer(train_heatmaps_names, shuffle=False)
+        # validate_images_queue = tf.train.string_input_producer(validate_images_names, shuffle=False)
+        # validate_heatmaps_queue = tf.train.string_input_producer(validate_heatmaps_names, shuffle=False)
 
         image_reader = tf.WholeFileReader()
 
-        _, train_image_file = image_reader.read(train_images_queue)
-        _, train_heatmap_file = image_reader.read(train_heatmaps_queue)
-        _, validate_image_file = image_reader.read(validate_images_queue)
-        _, validate_heatmap_file = image_reader.read(validate_heatmaps_queue)
+        file = queue.map(lambda q: image_reader.read(q)[1])
 
-        train_image = tf.image.decode_jpeg(train_image_file, ratio=2)
-        train_heatmap = tf.image.decode_jpeg(train_heatmap_file, ratio=2)
-        validate_image = tf.image.decode_jpeg(train_image_file, ratio=2)
-        validate_heatmap = tf.image.decode_jpeg(train_image_file, ratio=2)
+        # _, train_image_file = image_reader.read(train_images_queue)
+        # _, train_heatmap_file = image_reader.read(train_heatmaps_queue)
+        # _, validate_image_file = image_reader.read(validate_images_queue)
+        # _, validate_heatmap_file = image_reader.read(validate_heatmaps_queue)
 
-        train_image = tf.image.resize_images(train_image, [IMAGE_SIZE, IMAGE_SIZE])
-        train_heatmap = tf.image.resize_images(train_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
-        validate_image = tf.image.resize_images(validate_image, [IMAGE_SIZE, IMAGE_SIZE])
-        validate_heatmap = tf.image.resize_images(validate_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
+        bitmap = file \
+            .map(lambda f: tf.image.decode_jpeg(f, ratio=2)) \
+            .map(lambda i: tf.image.resize_images(i, [IMAGE_SIZE, IMAGE_SIZE])) \
+            .map(lambda i: i.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS]))
 
-        train_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        train_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        validate_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        validate_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        # train_image = tf.image.decode_jpeg(train_image_file, ratio=2)
+        # train_heatmap = tf.image.decode_jpeg(train_heatmap_file, ratio=2)
+        # validate_image = tf.image.decode_jpeg(train_image_file, ratio=2)
+        # validate_heatmap = tf.image.decode_jpeg(train_image_file, ratio=2)
+
+        # train_image = tf.image.resize_images(train_image, [IMAGE_SIZE, IMAGE_SIZE])
+        # train_heatmap = tf.image.resize_images(train_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
+        # validate_image = tf.image.resize_images(validate_image, [IMAGE_SIZE, IMAGE_SIZE])
+        # validate_heatmap = tf.image.resize_images(validate_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
+
+        # train_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        # train_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        # validate_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
+        # validate_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
         # num_preprocess_threads = 2
         # min_queue_examples = 64
@@ -252,14 +299,18 @@ class Model(object):
         #     capacity=min_queue_examples + 3 * BATCH_SIZE)
 
         # batch of size 1
-        batch_images = tf.expand_dims(train_image, 0)
-        batch_heatmaps = tf.expand_dims(train_heatmap, 0)
+        # batch_images = tf.expand_dims(train_image, 0)
+        # batch_heatmaps = tf.expand_dims(train_heatmap, 0)
 
-        augmented_batch_images = augment_many(batch_images)
-        augmented_batch_heatmaps = augment_many(batch_heatmaps)
+        batch = bitmap.train \
+            .map(lambda i: tf.expand_dims(i, 0)) \
+            .map(augment_many)
 
-        pred = conv_net(augmented_batch_images)
-        ground_truth = tf.div(augmented_batch_heatmaps, 256)
+        # augmented_batch_images = augment_many(batch_images)
+        # augmented_batch_heatmaps = augment_many(batch_heatmaps)
+
+        pred = conv_net(batch.images)
+        ground_truth = tf.div(batch.heatmaps, 256)
 
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
         optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
@@ -290,8 +341,8 @@ class Model(object):
         #     capacity=min_queue_examples + 3)
 
         # batch of size 1
-        batch_validate_images = tf.expand_dims(validate_image, 0)
-        batch_validate_heatmaps = tf.expand_dims(validate_heatmap, 0)
+        batch_validate_images = tf.expand_dims(bitmap.validate.images, 0)
+        batch_validate_heatmaps = tf.expand_dims(bitmap.validate.heatmaps, 0)
 
         validation_pred = gather_transformations(conv_net(augment_many(batch_validate_images)))
         validation_ground_truth = tf.div(batch_validate_heatmaps, 256)

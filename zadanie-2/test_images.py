@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from train import augment_image, revert_transformations
+from train import augment_image, revert_transformations, TrainValidate, ImagesHeatmaps
 
 
 def test_augmentation():
@@ -22,3 +22,12 @@ def test_augmentation():
     minus = tf.subtract(image, tf.reduce_mean(rev, 0))
     with tf.Session() as sess:
         sess.run(tf.Print(minus, [minus], summarize=64))
+
+
+def test_struct():
+    tv = TrainValidate()
+    ntv = tv.map(lambda _: 1)
+    assert ntv.train.images == 1
+    assert ntv.train.heatmaps == 1
+    assert ntv.validate.images == 1
+    assert ntv.validate.heatmaps == 1
