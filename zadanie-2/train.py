@@ -24,11 +24,13 @@ IMAGE_TRANSFORMATION_NUMBER = 8
 
 
 def conv(features, in_channels, out_channels, kernel_size=3, name='conv'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         stride = 1
         weights = tf.get_variable("weights", [kernel_size, kernel_size, in_channels, out_channels],
                                   initializer=tf.truncated_normal_initializer(stddev=0.1))
-        return tf.nn.conv2d(features, weights, strides=[1, stride, stride, 1], padding='SAME')
+        bias = tf.get_variable("bias", shape=[out_channels], initializer=tf.random_normal_initializer(stddev=0.1))
+        out = tf.nn.conv2d(features, weights, strides=[1, stride, stride, 1], padding='SAME')
+        return tf.nn.bias_add(out, bias)
 
 
 def conv_relu(features, in_channels, out_channels, name='conv_relu'):
@@ -37,7 +39,7 @@ def conv_relu(features, in_channels, out_channels, name='conv_relu'):
 
 
 def bn_conv_relu(features, in_channels, out_channels, name='bn_conv_relu'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         scale = tf.get_variable("scale", [in_channels],
                                 initializer=tf.constant_initializer(1.0))
         offset = tf.get_variable("beta", [in_channels],
@@ -52,21 +54,18 @@ def max_pool(features):
 
 
 def bn_conv_relu_3_maxpool(features, channels, name='bn_conv_relu_3_maxpool'):
-    with tf.name_scope(name):
-        with tf.variable_scope('first'):
-            out = bn_conv_relu(features, channels, channels)
-        with tf.variable_scope('second'):
-            out_skip_conn = bn_conv_relu(out, channels, channels)
-        with tf.variable_scope('third'):
-            out = bn_conv_relu(out_skip_conn, channels, channels)
+    with tf.variable_scope(name):
+        out = bn_conv_relu(features, channels, channels, name='first')
+        out_skip_conn = bn_conv_relu(out, channels, channels, name='second')
+        out = bn_conv_relu(out_skip_conn, channels, channels, name='third')
         out = max_pool(out)
         return out_skip_conn, out
 
 
 def upconv(features, in_channels, out_channels, out_size, name='upconv'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         stride = 2
-        weights = tf.get_variable("weights", [3, 3, out_channels, in_channels],
+        weights = tf.get_variable("weights", [4, 4, out_channels, in_channels],
                                   initializer=tf.truncated_normal_initializer(stddev=0.1))
         return tf.nn.conv2d_transpose(
             features, weights,
@@ -76,7 +75,7 @@ def upconv(features, in_channels, out_channels, out_size, name='upconv'):
 
 
 def bn_upconv_relu(features, in_channels, out_channels, out_size, name='bn_upconv_relu'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         scale = tf.get_variable("scale", [in_channels],
                                 initializer=tf.constant_initializer(1.0))
         offset = tf.get_variable("beta", [in_channels],
@@ -87,22 +86,20 @@ def bn_upconv_relu(features, in_channels, out_channels, out_size, name='bn_upcon
 
 
 def concat(features_down, features_up, name='concat'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         return tf.concat([features_down, features_up], axis=3)
 
 
 def concat_bn_conv_relu_2(features_down, features_up, name='concat_bn_conv_relu_2'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         out = concat(features_down, features_up)
-        with tf.variable_scope('first'):
-            out = bn_conv_relu(out, 128, 96)
-        with tf.variable_scope('second'):
-            return bn_conv_relu(out, 96, 64)
+        out = bn_conv_relu(out, 128, 96, name='first')
+        return bn_conv_relu(out, 96, 64, name='second')
 
 
 def concat_bn_conv_relu_2_bn_upconv_relu(features_down, features_up, out_size,
                                          name='concat_bn_conv_relu_2_bn_upconv_relu'):
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
         out = concat_bn_conv_relu_2(features_down, features_up)
         return bn_upconv_relu(out, 64, 64, out_size)
 
@@ -116,10 +113,8 @@ def conv_net(features):
         features_down1 = conv_relu(features, 3, 64)
 
     with tf.variable_scope('down2'):
-        with tf.variable_scope('first'):
-            features_down2_skip_conn = bn_conv_relu(features_down1, 64, 64)
-        with tf.variable_scope('second'):
-            features_down2 = bn_conv_relu(features_down2_skip_conn, 64, 64)
+        features_down2_skip_conn = bn_conv_relu(features_down1, 64, 64, name='first')
+        features_down2 = bn_conv_relu(features_down2_skip_conn, 64, 64, name='second')
         features_down2 = max_pool(features_down2)
 
     with tf.variable_scope('down3'):
@@ -132,10 +127,8 @@ def conv_net(features):
         features_down6_skip_conn, features_down6 = bn_conv_relu_3_maxpool(features_down5, 64)
 
     with tf.variable_scope('up1'):
-        with tf.variable_scope('first'):
-            features_up1 = bn_conv_relu(features_down6, 64, 64)
-        with tf.variable_scope('second'):
-            features_up1 = bn_conv_relu(features_up1, 64, 64)
+        features_up1 = bn_conv_relu(features_down6, 64, 64, name='first')
+        features_up1 = bn_conv_relu(features_up1, 64, 64, name='second')
         features_up1 = bn_upconv_relu(features_up1, 64, 64, 16)
 
     with tf.variable_scope('up2'):
