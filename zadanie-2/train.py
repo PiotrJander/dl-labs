@@ -263,13 +263,6 @@ class Model(object):
 
         batch = bitmap.map(f_batch)
 
-        # batch = bitmap.train \
-            # .map(lambda i: tf.expand_dims(i, 0)) \
-            # .map(augment_many)
-
-        # pred = conv_net(batch.images)
-        # ground_truth = tf.div(batch.heatmaps, 256)
-
         pred = conv_net(batch.train.images)
         ground_truth = tf.div(batch.train.heatmaps, 256)
 
@@ -289,28 +282,12 @@ class Model(object):
 
         tf.get_variable_scope().reuse_variables()
 
-        # batch_validate_images = tf.train.batch(
-        #     [validate_image],
-        #     batch_size=1,
-        #     num_threads=num_preprocess_threads,
-        #     capacity=min_queue_examples + 3)
-        #
-        # batch_validate_heatmaps = tf.train.batch(
-        #     [validate_heatmap],
-        #     batch_size=1,
-        #     num_threads=num_preprocess_threads,
-        #     capacity=min_queue_examples + 3)
-
-        # batch_validate = bitmap.validate.map(lambda i: tf.expand_dims(i, 0))
-
         # validation_pred = gather_transformations(conv_net(augment_many(batch.validate.images)))
         validation_pred = conv_net(batch.validate.images)
         validation_ground_truth = tf.div(batch.validate.heatmaps, 256)
 
         catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, validation_pred], axis=2)
         tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
-        # catimgs = tf.concat([catimg for _ in range(VALIDATION_SET_SIZE)], axis=1)
-        # tf.summary.image('validation', catimgs)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
@@ -318,13 +295,13 @@ class Model(object):
         validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
         validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
 
-        # validation_correct_pred_all = tf.reduce_mean([validation_cost for _ in range(VALIDATION_SET_SIZE)])
-        # validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
-
         def validate(sess, writer):
             loss, acc = sess.run([validation_cost, validation_accuracy])
             print("Validation loss %g" % loss)
             print("Validation accuracy %g" % acc)
+
+        # validation_correct_pred_all = tf.reduce_mean([validation_cost for _ in range(VALIDATION_SET_SIZE)])
+        # validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
 
         # def validate(sess, writer):
         #     loss = []
@@ -347,7 +324,7 @@ class Model(object):
         self.summaries = tf.summary.merge_all()
 
     def train(self):
-        saver = tf.train.Saver(tf.trainable_variables())
+        # saver = tf.train.Saver(tf.trainable_variables())
         if not os.path.exists('save'):
             os.makedirs('save')
 
@@ -376,7 +353,7 @@ class Model(object):
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
 
-                    writer.add_summary(summaries)
+                    writer.add_summary(summaries, global_step=i)
                     sys.stdout.flush()
             except KeyboardInterrupt:
                 # TODO save model

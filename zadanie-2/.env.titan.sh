@@ -1,3 +1,2 @@
 export DATA_SET_SIZE=40
 export VALIDATION_SET_SIZE=20
-export BATCH_SIZE=2
