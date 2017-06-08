@@ -8,11 +8,12 @@ Q is batch norm a sort of normalization?
 
 
 
+for now comment out img summary
+
+add histograms for weights instead
+
 
 TODO batch norm and m vs m - 1, or m / m - 1
-TODO do we need regularization? plot distributions in different places
-    and write sums of weighs
-TODO what is the correct loss at chance performance?
 TODO check that validation accuracy almost as good as train acc
 TODO for each layer, ration updates to weights, might be 1e-3
 TODO histograms of activation / gradient per layer

@@ -73,6 +73,9 @@ def bn_conv_relu(features, in_channels, out_channels, name='bn_conv_relu'):
                                  initializer=tf.constant_initializer(0.0))
         mean, variance = tf.nn.moments(features, [0, 1, 2], keep_dims=True)
         out = tf.nn.batch_normalization(features, mean, variance, scale, offset, variance_epsilon=1e-4)
+
+        tf.summary.histogram('after_batch_norm', out)
+
         return conv_relu(out, in_channels, out_channels)
 
 
@@ -290,9 +293,8 @@ class Model(object):
         validation_pred = conv_net(batch.validate.images)
         validation_ground_truth = tf.div(batch.validate.heatmaps, 256)
 
-        catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, validation_pred], axis=2)
-        catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, tf.constant(1.0, dtype=tf.float32, shape=batch.validate.images.get_shape())], axis=2)
-        self.image_summaries = tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
+        # catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, validation_pred], axis=2)
+        # self.image_summaries = tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
@@ -354,11 +356,14 @@ class Model(object):
 
                     self.validate(sess, writer)
 
+                    summaries = sess.run(self.summaries)
+                    writer.add_summary(summaries)
+
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
                 else:
-                    summaries = sess.run(self.image_summaries)
-                    writer.add_summary(summaries)
+                    # summaries = sess.run(self.image_summaries)
+                    # writer.add_summary(summaries)
                     sys.stdout.flush()
             except KeyboardInterrupt:
                 # TODO save model
