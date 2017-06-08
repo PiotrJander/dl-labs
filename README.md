@@ -6,7 +6,6 @@ TODO add augmentations
 Q is batch norm a sort of normalization?
 
 
-TODO loss function plot, maybe on log scale
 
 
 
