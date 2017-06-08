@@ -27,8 +27,8 @@ class ImagesHeatmaps(object):
     def __init__(self, images=None, heatmaps=None):
         super(ImagesHeatmaps, self).__init__()
 
-        self.images = images or {}
-        self.heatmaps = heatmaps or {}
+        self.images = images if images is not None else {}
+        self.heatmaps = heatmaps if heatmaps is not None else {}
 
     def map(self, f):
         return ImagesHeatmaps(f(self.images), f(self.heatmaps))
@@ -243,8 +243,10 @@ class Model(object):
 
         bitmap = file \
             .map(lambda f: tf.image.decode_jpeg(f, ratio=2)) \
-            .map(lambda i: tf.image.resize_images(i, [IMAGE_SIZE, IMAGE_SIZE])) \
-            .map(lambda i: i.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS]))
+            .map(lambda i: tf.image.resize_images(i, [IMAGE_SIZE, IMAGE_SIZE]))
+
+        for bm in [bitmap.train.images, bitmap.train.heatmaps, bitmap.validate.images, bitmap.validate.heatmaps]:
+            bm.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
         # num_preprocess_threads = 2
         # min_queue_examples = 64
