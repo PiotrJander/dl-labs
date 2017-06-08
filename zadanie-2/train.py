@@ -1,12 +1,14 @@
-from __future__ import print_function, generators
+from __future__ import print_function, generators, division
 
 import datetime
 import random
 from itertools import count
-
-import tensorflow as tf
 import os
 import sys
+
+import tensorflow as tf
+import numpy as np
+
 
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 DATA_SET_SIZE = int(os.environ.get('DATA_SET_SIZE') or 10593)
@@ -249,6 +251,8 @@ class Model(object):
         for bm in [bitmap.train.images, bitmap.train.heatmaps, bitmap.validate.images, bitmap.validate.heatmaps]:
             bm.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
+        # tf.summary.image('train', bitmap)
+
         # num_preprocess_threads = 2
         # min_queue_examples = 64
         # batch_images = tf.train.batch(
@@ -304,8 +308,9 @@ class Model(object):
         validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
 
         catimg = tf.concat([batch_validate.images, batch_validate.heatmaps, validation_pred], axis=2)
-        catimgs = tf.concat([catimg for _ in range(VALIDATION_SET_SIZE)], axis=1)
-        img = tf.summary.image('validation', catimgs)
+        tf.summary.image('validation', catimg)
+        # catimgs = tf.concat([catimg for _ in range(VALIDATION_SET_SIZE)], axis=1)
+        # tf.summary.image('validation', catimgs)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
@@ -313,13 +318,25 @@ class Model(object):
         validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
         validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
 
-        validation_correct_pred_all = tf.reduce_mean([validation_cost for _ in range(VALIDATION_SET_SIZE)])
-        validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
+        # validation_correct_pred_all = tf.reduce_mean([validation_cost for _ in range(VALIDATION_SET_SIZE)])
+        # validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
 
-        def validate(sess):
-            loss, acc = sess.run([validation_correct_pred_all, validation_accuracy_all])
-            print("Validation loss %g" % loss)
-            print("Validation accuracy %g" % acc)
+        def validate(sess, writer):
+            # loss, acc = sess.run([validation_correct_pred_all, validation_accuracy_all])
+            loss = []
+            acc = []
+            for i in range(VALIDATION_SET_SIZE):
+                l, a, image_summary = sess.run([
+                    validation_correct_pred,
+                    validation_accuracy,
+                    tf.summary.image('validation %d' % i, catimg)
+                ])
+                loss.append(l)
+                acc.append(a)
+                writer.add_summary(image_summary)
+
+            print("Validation loss %g" % np.mean(loss))
+            print("Validation accuracy %g" % np.mean(acc))
 
         self.validate = validate
 
@@ -348,7 +365,7 @@ class Model(object):
 
                     # validate after every five epochs
                     # if i % 5 == 0:
-                    self.validate(sess)
+                    self.validate(sess, writer)
                     summaries = sess.run(self.summaries)
 
                     # if i % 10 == 0:
@@ -359,7 +376,7 @@ class Model(object):
             except KeyboardInterrupt:
                 # TODO save model
                 print("Optimization Finished!")
-                self.validate(sess)
+                # self.validate(sess)
                 # saver.save(sess, 'save/model', global_step=0)
             finally:
                 writer.close()

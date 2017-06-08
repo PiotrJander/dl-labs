@@ -3,11 +3,23 @@ TODO visualize results
 TODO use two images in batch, maybe more
 
 very simple:
-* visualize what happened in the 20 examples case; summary of validation images
-* concat image, ground truth, and prediction
-* if can't log many images, combine into one
-* even simpler: print just one image
+* problem, we cycle over two images and get noise for both
+* idea: how do we see what images are read to tf?
+* each time we call a queue, we dequeue one item from it
+* in one sess.run, we can take one image off the queue,
+* unless we use batch, in which case we take more
+* validate one by one, or 2 after two
+* then get mean for accuracy and mean for loss
+* so my batch can be at most 20 images
+* or ten images with single augmentation
 
+very simple: use batches of ten with one augmentation
+no need to reverse augmentations in train, so pick at random
+
+* idea: summary for each image sep, summary in 
+
+or just write all images to one summary of same name
+but graph is constructed when we run a session!
 
 
 TODO observe loss function plot, maybe log
