@@ -355,7 +355,8 @@ class Model(object):
             threads = tf.train.start_queue_runners(coord=coord)
 
             try:
-                for i in count():
+                # for i in count():
+                for i in range(5):
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
                         loss, acc = self.train_on_batch(sess)
                         if j % 20 == 0:
