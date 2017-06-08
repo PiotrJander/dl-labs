@@ -355,7 +355,7 @@ class Model(object):
 
             try:
                 # for i in count():
-                self.run_all_summaries(sess, writer)
+                # self.run_all_summaries(sess, writer)
 
                 for i in range(5):
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
@@ -375,7 +375,7 @@ class Model(object):
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
                 else:
-                    self.run_all_summaries(sess, writer)
+                    # self.run_all_summaries(sess, writer, 100)
                     # summaries = sess.run(self.image_summaries)
                     # writer.add_summary(summaries)
                     sys.stdout.flush()
