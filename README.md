@@ -13,14 +13,10 @@ very simple:
 * so my batch can be at most 20 images
 * or ten images with single augmentation
 
-very simple: use batches of ten with one augmentation
-no need to reverse augmentations in train, so pick at random
 
-* idea: summary for each image sep, summary in 
-
-or just write all images to one summary of same name
-but graph is constructed when we run a session!
-
+very simple
+TODO start with batches of 20, without augmentation  for validation
+TODO similarly, no augmentation for train
 
 TODO observe loss function plot, maybe log
 TODO maybe one augmentation

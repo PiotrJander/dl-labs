@@ -17,13 +17,15 @@ TRAIN_SET_SIZE = DATA_SET_SIZE - VALIDATION_SET_SIZE
 DATA_DIR = os.environ.get('SPACENET') or '/data/spacenet2/'
 IMAGES_DIR = os.path.join(DATA_DIR, 'images')
 HEATMAPS_DIR = os.path.join(DATA_DIR, 'heatmaps')
-BATCH_SIZE = int(os.environ.get('BATCH_SIZE') or 2)
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE') or 20)
 AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 HALF_IMAGE_SIZE = 325
 IMAGE_SIZE = 256
 CHANNELS = 3
 LEARNING_RATE = 0.001
 IMAGE_TRANSFORMATION_NUMBER = 8
+num_preprocess_threads = 2
+min_queue_examples = 64
 
 
 class ImagesHeatmaps(object):
@@ -251,28 +253,25 @@ class Model(object):
         for bm in [bitmap.train.images, bitmap.train.heatmaps, bitmap.validate.images, bitmap.validate.heatmaps]:
             bm.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
-        # tf.summary.image('train', bitmap)
+        def f_batch(bm):
+            return tf.train.batch(
+                [bm],
+                batch_size=BATCH_SIZE,
+                num_threads=num_preprocess_threads,
+                capacity=min_queue_examples + 3 * BATCH_SIZE
+            )
 
-        # num_preprocess_threads = 2
-        # min_queue_examples = 64
-        # batch_images = tf.train.batch(
-        #     [train_image],
-        #     batch_size=BATCH_SIZE,
-        #     num_threads=num_preprocess_threads,
-        #     capacity=min_queue_examples + 3 * BATCH_SIZE)
-        #
-        # batch_heatmaps = tf.train.batch(
-        #     [train_heatmap],
-        #     batch_size=BATCH_SIZE,
-        #     num_threads=num_preprocess_threads,
-        #     capacity=min_queue_examples + 3 * BATCH_SIZE)
+        batch = bitmap.map(f_batch)
 
-        batch = bitmap.train \
-            .map(lambda i: tf.expand_dims(i, 0)) \
-            .map(augment_many)
+        # batch = bitmap.train \
+            # .map(lambda i: tf.expand_dims(i, 0)) \
+            # .map(augment_many)
 
-        pred = conv_net(batch.images)
-        ground_truth = tf.div(batch.heatmaps, 256)
+        # pred = conv_net(batch.images)
+        # ground_truth = tf.div(batch.heatmaps, 256)
+
+        pred = conv_net(batch.train.images)
+        ground_truth = tf.div(batch.train.heatmaps, 256)
 
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
         optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
@@ -302,13 +301,14 @@ class Model(object):
         #     num_threads=num_preprocess_threads,
         #     capacity=min_queue_examples + 3)
 
-        batch_validate = bitmap.validate.map(lambda i: tf.expand_dims(i, 0))
+        # batch_validate = bitmap.validate.map(lambda i: tf.expand_dims(i, 0))
 
-        validation_pred = gather_transformations(conv_net(augment_many(batch_validate.images)))
-        validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
+        # validation_pred = gather_transformations(conv_net(augment_many(batch.validate.images)))
+        validation_pred = conv_net(batch.validate.images)
+        validation_ground_truth = tf.div(batch.validate.heatmaps, 256)
 
-        catimg = tf.concat([batch_validate.images, batch_validate.heatmaps, validation_pred], axis=2)
-        tf.summary.image('validation', catimg)
+        catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, validation_pred], axis=2)
+        tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
         # catimgs = tf.concat([catimg for _ in range(VALIDATION_SET_SIZE)], axis=1)
         # tf.summary.image('validation', catimgs)
 
@@ -322,21 +322,25 @@ class Model(object):
         # validation_accuracy_all = tf.reduce_mean([validation_accuracy for _ in range(VALIDATION_SET_SIZE)])
 
         def validate(sess, writer):
-            # loss, acc = sess.run([validation_correct_pred_all, validation_accuracy_all])
-            loss = []
-            acc = []
-            for i in range(VALIDATION_SET_SIZE):
-                l, a, image_summary = sess.run([
-                    validation_correct_pred,
-                    validation_accuracy,
-                    tf.summary.image('validation %d' % i, catimg)
-                ])
-                loss.append(l)
-                acc.append(a)
-                writer.add_summary(image_summary)
+            loss, acc = sess.run([validation_cost, validation_accuracy])
+            print("Validation loss %g" % loss)
+            print("Validation accuracy %g" % acc)
 
-            print("Validation loss %g" % np.mean(loss))
-            print("Validation accuracy %g" % np.mean(acc))
+        # def validate(sess, writer):
+        #     loss = []
+        #     acc = []
+        #     for i in range(VALIDATION_SET_SIZE):
+        #         l, a, image_summary = sess.run([
+        #             validation_correct_pred,
+        #             validation_accuracy,
+        #             tf.summary.image('validation %d' % i, catimg)
+        #         ])
+        #         loss.append(l)
+        #         acc.append(a)
+        #         writer.add_summary(image_summary)
+        #
+        #     print("Validation loss %g" % np.mean(loss))
+        #     print("Validation accuracy %g" % np.mean(acc))
 
         self.validate = validate
 
