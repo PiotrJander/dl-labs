@@ -57,6 +57,10 @@ def conv(features, in_channels, out_channels, kernel_size=3, name='conv'):
                                   initializer=tf.truncated_normal_initializer(stddev=0.1))
         bias = tf.get_variable("bias", shape=[out_channels], initializer=tf.random_normal_initializer(stddev=0.1))
         out = tf.nn.conv2d(features, weights, strides=[1, stride, stride, 1], padding='SAME')
+
+        tf.summary.histogram('weights', weights)
+        tf.summary.histogram('biases', bias)
+
         return tf.nn.bias_add(out, bias)
 
 
@@ -74,7 +78,7 @@ def bn_conv_relu(features, in_channels, out_channels, name='bn_conv_relu'):
         mean, variance = tf.nn.moments(features, [0, 1, 2], keep_dims=True)
         out = tf.nn.batch_normalization(features, mean, variance, scale, offset, variance_epsilon=1e-4)
 
-        tf.summary.histogram('after_batch_norm', out)
+        # tf.summary.histogram('after_batch_norm', out)
 
         return conv_relu(out, in_channels, out_channels)
 
@@ -360,7 +364,8 @@ class Model(object):
                             print("Iter " + str(j) + ", Minibatch Loss= " +
                                   "{:.6f}".format(loss) + ", Training Accuracy= " +
                                   "{:.5f}".format(acc))
-                        writer.add_summary(summ, global_step=i)  # TODO need global step here?
+                        self.run_all_summaries(sess, writer)
+                        # writer.add_summary(summ, global_step=i)  # TODO need global step here?
 
                     self.validate(sess, writer)
 
