@@ -353,12 +353,13 @@ class Model(object):
                     #     saver.save(sess, 'save/model', global_step=i)
 
                     writer.add_summary(summaries)
-                    writer.close()
             except KeyboardInterrupt:
                 # TODO save model
                 print("Optimization Finished!")
                 self.validate(sess)
                 # saver.save(sess, 'save/model', global_step=0)
+            finally:
+                writer.close()
                 coord.request_stop()
                 coord.join(threads)
 
