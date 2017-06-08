@@ -22,7 +22,7 @@ AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 HALF_IMAGE_SIZE = 325
 IMAGE_SIZE = 256
 CHANNELS = 3
-LEARNING_RATE = 0.001
+LEARNING_RATE = 1e-5
 IMAGE_TRANSFORMATION_NUMBER = 8
 num_preprocess_threads = 2
 min_queue_examples = 64
@@ -269,12 +269,16 @@ class Model(object):
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=ground_truth))
         optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
 
+        loss_summary = tf.summary.scalar('loss', cost)
+
         correct_pred = tf.equal(tf.argmax(pred, 3), tf.argmax(ground_truth, 3))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+        train_summaries = tf.summary.merge([loss_summary])
+
         def train_on_batch(sess):
             sess.run(optimizer)
-            return sess.run([cost, accuracy])
+            return sess.run([cost, accuracy, train_summaries])
 
         self.train_on_batch = train_on_batch
 
@@ -287,11 +291,12 @@ class Model(object):
         validation_ground_truth = tf.div(batch.validate.heatmaps, 256)
 
         catimg = tf.concat([batch.validate.images, batch.validate.heatmaps, validation_pred], axis=2)
-        tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
+        self.image_summaries = tf.summary.image('validation', catimg, max_outputs=BATCH_SIZE)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
             labels=validation_ground_truth))
+
         validation_correct_pred = tf.equal(tf.argmax(validation_pred, 3), tf.argmax(validation_ground_truth, 3))
         validation_accuracy = tf.reduce_mean(tf.cast(validation_correct_pred, tf.float32))
 
@@ -339,21 +344,20 @@ class Model(object):
                 # for i in count():
                 for i in range(5):
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
-                        loss, acc = self.train_on_batch(sess)
+                        loss, acc, summ = self.train_on_batch(sess)
                         if j % 20 == 0:
                             print("Iter " + str(j) + ", Minibatch Loss= " +
                                   "{:.6f}".format(loss) + ", Training Accuracy= " +
                                   "{:.5f}".format(acc))
+                        writer.add_summary(summ, global_step=i)  # TODO need global step here?
 
-                    # validate after every five epochs
-                    # if i % 5 == 0:
                     self.validate(sess, writer)
-                    summaries = sess.run(self.summaries)
 
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
-
-                    writer.add_summary(summaries, global_step=i)
+                else:
+                    summaries = sess.run(self.image_summaries)
+                    writer.add_summary(summaries)
                     sys.stdout.flush()
             except KeyboardInterrupt:
                 # TODO save model

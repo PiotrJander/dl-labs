@@ -1,31 +1,19 @@
 TODO rescale to original resolution of 650
 TODO visualize results
 TODO use two images in batch, maybe more
+TODO add augmentations
 
-very simple:
-* problem, we cycle over two images and get noise for both
-* idea: how do we see what images are read to tf?
-* each time we call a queue, we dequeue one item from it
-* in one sess.run, we can take one image off the queue,
-* unless we use batch, in which case we take more
-* validate one by one, or 2 after two
-* then get mean for accuracy and mean for loss
-* so my batch can be at most 20 images
-* or ten images with single augmentation
+Q is batch norm a sort of normalization?
 
 
-very simple
-TODO start with batches of 20, without augmentation  for validation
-TODO similarly, no augmentation for train
+TODO loss function plot, maybe on log scale
 
-TODO observe loss function plot, maybe log
-TODO maybe one augmentation
+
+
 TODO batch norm and m vs m - 1, or m / m - 1
 TODO do we need regularization? plot distributions in different places
     and write sums of weighs
 TODO what is the correct loss at chance performance?
-TODO try adam with 10e-5
-TODO plot loss / epochs or loss / batches
 TODO check that validation accuracy almost as good as train acc
 TODO for each layer, ration updates to weights, might be 1e-3
 TODO histograms of activation / gradient per layer
