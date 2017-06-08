@@ -329,7 +329,13 @@ class Model(object):
 
         self.validate = validate
 
-        self.summaries = tf.summary.merge_all()
+        summaries = tf.summary.merge_all()
+
+        def run_all_summaries(sess, writer):
+            summ = sess.run(summaries)
+            writer.add_summary(summ)
+
+        self.run_all_summaries = run_all_summaries
 
     def train(self):
         # saver = tf.train.Saver(tf.trainable_variables())
@@ -345,6 +351,8 @@ class Model(object):
 
             try:
                 # for i in count():
+                self.run_all_summaries(sess, writer)
+
                 for i in range(5):
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
                         loss, acc, summ = self.train_on_batch(sess)
@@ -356,12 +364,13 @@ class Model(object):
 
                     self.validate(sess, writer)
 
-                    summaries = sess.run(self.summaries)
-                    writer.add_summary(summaries)
+                    # summaries = sess.run(self.summaries)
+                    # writer.add_summary(summaries)
 
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
                 else:
+                    self.run_all_summaries(sess, writer)
                     # summaries = sess.run(self.image_summaries)
                     # writer.add_summary(summaries)
                     sys.stdout.flush()
