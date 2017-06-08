@@ -221,23 +221,10 @@ def get_file_names():
     filenames = TrainValidate()
     filenames.train.images = [os.path.join(IMAGES_DIR, name) for name in train]
     filenames.train.heatmaps = [os.path.join(HEATMAPS_DIR, name) for name in train]
-    filenames.validate.images = [os.path.join(IMAGES_DIR, name) for name in validate]
-    filenames.validate.heatmaps = [os.path.join(HEATMAPS_DIR, name) for name in validate]
-
-    # filenames = {
-    #     'train': {
-    #         'images': [os.path.join(IMAGES_DIR, name) for name in train],
-    #         'heatmaps': [os.path.join(HEATMAPS_DIR, name) for name in train]
-    #     },
-    #     'validate': {
-    #         ''
-    #     }
-    # }
-
-    # train_images_names = [os.path.join(IMAGES_DIR, name) for name in train]
-    # train_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in train]
-    # validate_images_names = [os.path.join(IMAGES_DIR, name) for name in validate]
-    # validate_heatmaps_names = [os.path.join(HEATMAPS_DIR, name) for name in validate]
+    filenames.validate.images = filenames.train.images
+    filenames.validate.heatmaps = filenames.train.heatmaps
+    # filenames.validate.images = [os.path.join(IMAGES_DIR, name) for name in validate]
+    # filenames.validate.heatmaps = [os.path.join(HEATMAPS_DIR, name) for name in validate]
 
     return filenames
 
@@ -250,39 +237,14 @@ class Model(object):
 
         queue = filenames.map(lambda names: tf.train.string_input_producer(names, shuffle=False))
 
-        # train_images_queue = tf.train.string_input_producer(train_images_names, shuffle=False)
-        # train_heatmaps_queue = tf.train.string_input_producer(train_heatmaps_names, shuffle=False)
-        # validate_images_queue = tf.train.string_input_producer(validate_images_names, shuffle=False)
-        # validate_heatmaps_queue = tf.train.string_input_producer(validate_heatmaps_names, shuffle=False)
-
         image_reader = tf.WholeFileReader()
 
         file = queue.map(lambda q: image_reader.read(q)[1])
-
-        # _, train_image_file = image_reader.read(train_images_queue)
-        # _, train_heatmap_file = image_reader.read(train_heatmaps_queue)
-        # _, validate_image_file = image_reader.read(validate_images_queue)
-        # _, validate_heatmap_file = image_reader.read(validate_heatmaps_queue)
 
         bitmap = file \
             .map(lambda f: tf.image.decode_jpeg(f, ratio=2)) \
             .map(lambda i: tf.image.resize_images(i, [IMAGE_SIZE, IMAGE_SIZE])) \
             .map(lambda i: i.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS]))
-
-        # train_image = tf.image.decode_jpeg(train_image_file, ratio=2)
-        # train_heatmap = tf.image.decode_jpeg(train_heatmap_file, ratio=2)
-        # validate_image = tf.image.decode_jpeg(train_image_file, ratio=2)
-        # validate_heatmap = tf.image.decode_jpeg(train_image_file, ratio=2)
-
-        # train_image = tf.image.resize_images(train_image, [IMAGE_SIZE, IMAGE_SIZE])
-        # train_heatmap = tf.image.resize_images(train_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
-        # validate_image = tf.image.resize_images(validate_image, [IMAGE_SIZE, IMAGE_SIZE])
-        # validate_heatmap = tf.image.resize_images(validate_heatmap, [IMAGE_SIZE, IMAGE_SIZE])
-
-        # train_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        # train_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        # validate_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
-        # validate_heatmap.set_shape([IMAGE_SIZE, IMAGE_SIZE, CHANNELS])
 
         # num_preprocess_threads = 2
         # min_queue_examples = 64
@@ -298,16 +260,9 @@ class Model(object):
         #     num_threads=num_preprocess_threads,
         #     capacity=min_queue_examples + 3 * BATCH_SIZE)
 
-        # batch of size 1
-        # batch_images = tf.expand_dims(train_image, 0)
-        # batch_heatmaps = tf.expand_dims(train_heatmap, 0)
-
         batch = bitmap.train \
             .map(lambda i: tf.expand_dims(i, 0)) \
             .map(augment_many)
-
-        # augmented_batch_images = augment_many(batch_images)
-        # augmented_batch_heatmaps = augment_many(batch_heatmaps)
 
         pred = conv_net(batch.images)
         ground_truth = tf.div(batch.heatmaps, 256)
@@ -340,12 +295,10 @@ class Model(object):
         #     num_threads=num_preprocess_threads,
         #     capacity=min_queue_examples + 3)
 
-        # batch of size 1
-        batch_validate_images = tf.expand_dims(bitmap.validate.images, 0)
-        batch_validate_heatmaps = tf.expand_dims(bitmap.validate.heatmaps, 0)
+        batch_validate = bitmap.validate.map(lambda i: tf.expand_dims(i, 0))
 
-        validation_pred = gather_transformations(conv_net(augment_many(batch_validate_images)))
-        validation_ground_truth = tf.div(batch_validate_heatmaps, 256)
+        validation_pred = gather_transformations(conv_net(augment_many(batch_validate.images)))
+        validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
