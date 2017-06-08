@@ -302,6 +302,9 @@ class Model(object):
         validation_pred = gather_transformations(conv_net(augment_many(batch_validate.images)))
         validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
 
+        catimg = tf.concat([batch_validate.images, batch_validate.heatmaps, validation_pred], axis=2)
+        img = tf.summary.image()
+
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
             labels=validation_ground_truth))
@@ -317,6 +320,8 @@ class Model(object):
             print("Validation accuracy %g" % acc)
 
         self.validate = validate
+
+        self.summaries = tf.summary.merge_all()
 
     def train(self):
         saver = tf.train.Saver(tf.trainable_variables())
@@ -334,7 +339,7 @@ class Model(object):
                 for i in count():
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
                         loss, acc = self.train_on_batch(sess)
-                        if j % 20:
+                        if j % 20 == 0:
                             print("Iter " + str(j) + ", Minibatch Loss= " +
                                   "{:.6f}".format(loss) + ", Training Accuracy= " +
                                   "{:.5f}".format(acc))
@@ -342,12 +347,13 @@ class Model(object):
                     # validate after every five epochs
                     # if i % 5 == 0:
                     self.validate(sess)
+                    summaries = sess.run(self.summaries)
 
                     # if i % 10 == 0:
                     #     saver.save(sess, 'save/model', global_step=i)
 
-                    # writer.add_summary(summaries)
-                    # writer.close()
+                    writer.add_summary(summaries)
+                    writer.close()
             except KeyboardInterrupt:
                 # TODO save model
                 print("Optimization Finished!")
