@@ -303,7 +303,7 @@ class Model(object):
         validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
 
         catimg = tf.concat([batch_validate.images, batch_validate.heatmaps, validation_pred], axis=2)
-        img = tf.summary.image()
+        img = tf.summary.image('validation', catimg)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
