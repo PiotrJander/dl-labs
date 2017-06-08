@@ -6,6 +6,7 @@ from itertools import count
 
 import tensorflow as tf
 import os
+import sys
 
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 DATA_SET_SIZE = int(os.environ.get('DATA_SET_SIZE') or 10593)
@@ -303,7 +304,8 @@ class Model(object):
         validation_ground_truth = tf.div(batch_validate.heatmaps, 256)
 
         catimg = tf.concat([batch_validate.images, batch_validate.heatmaps, validation_pred], axis=2)
-        img = tf.summary.image('validation', catimg)
+        catimgs = tf.concat([catimg for _ in range(VALIDATION_SET_SIZE)], axis=1)
+        img = tf.summary.image('validation', catimgs)
 
         validation_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=validation_pred,
@@ -353,6 +355,7 @@ class Model(object):
                     #     saver.save(sess, 'save/model', global_step=i)
 
                     writer.add_summary(summaries)
+                    sys.stdout.flush()
             except KeyboardInterrupt:
                 # TODO save model
                 print("Optimization Finished!")
