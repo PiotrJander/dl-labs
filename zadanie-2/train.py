@@ -335,9 +335,9 @@ class Model(object):
 
         summaries = tf.summary.merge_all()
 
-        def run_all_summaries(sess, writer):
+        def run_all_summaries(sess, writer, gs):
             summ = sess.run(summaries)
-            writer.add_summary(summ)
+            writer.add_summary(summ, gs)
 
         self.run_all_summaries = run_all_summaries
 
@@ -364,7 +364,7 @@ class Model(object):
                             print("Iter " + str(j) + ", Minibatch Loss= " +
                                   "{:.6f}".format(loss) + ", Training Accuracy= " +
                                   "{:.5f}".format(acc))
-                        self.run_all_summaries(sess, writer)
+                        self.run_all_summaries(sess, writer, 20 * i + j)
                         # writer.add_summary(summ, global_step=i)  # TODO need global step here?
 
                     self.validate(sess, writer)
