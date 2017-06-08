@@ -340,11 +340,11 @@ class Model(object):
                                   "{:.5f}".format(acc))
 
                     # validate after every five epochs
-                    if i % 5 == 0:
-                        self.validate(sess)
+                    # if i % 5 == 0:
+                    self.validate(sess)
 
-                    if i % 10 == 0:
-                        saver.save(sess, 'save/model', global_step=i)
+                    # if i % 10 == 0:
+                    #     saver.save(sess, 'save/model', global_step=i)
 
                     # writer.add_summary(summaries)
                     # writer.close()
@@ -352,7 +352,7 @@ class Model(object):
                 # TODO save model
                 print("Optimization Finished!")
                 self.validate(sess)
-                saver.save(sess, 'save/model', global_step=0)
+                # saver.save(sess, 'save/model', global_step=0)
                 coord.request_stop()
                 coord.join(threads)
 
