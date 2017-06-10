@@ -290,8 +290,8 @@ class Model(object):
                                   "{:.6f}".format(loss) + ", Training Accuracy= " +
                                   "{:.5f}".format(acc))
                         self.run_all_summaries(sess, writer, 20 * i + j)
-                else:
-                    sys.stdout.flush()
+                    else:
+                        sys.stdout.flush()
             except KeyboardInterrupt:
                 print("Optimization Finished!")
             finally:
