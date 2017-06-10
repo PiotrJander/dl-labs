@@ -127,38 +127,38 @@ def convout(features, name='convout'):
 
 
 def conv_net(features):
-    with tf.name_scope('down1'):
+    with tf.variable_scope('down1'):
         features_down1 = conv_relu(features, 64)
 
-    with tf.name_scope('down2'):
+    with tf.variable_scope('down2'):
         features_down2_skip_conn = bn_conv_relu(features_down1, 64)
         features_down2 = bn_conv_relu(features_down2_skip_conn, 64)
         features_down2 = max_pool(features_down2)
 
-    with tf.name_scope('down3'):
+    with tf.variable_scope('down3'):
         features_down3_skip_conn, features_down3 = bn_conv_relu_3_maxpool(features_down2, 64)
-    with tf.name_scope('down4'):
+    with tf.variable_scope('down4'):
         features_down4_skip_conn, features_down4 = bn_conv_relu_3_maxpool(features_down3, 64)
-    with tf.name_scope('down5'):
+    with tf.variable_scope('down5'):
         features_down5_skip_conn, features_down5 = bn_conv_relu_3_maxpool(features_down4, 64)
-    with tf.name_scope('down6'):
+    with tf.variable_scope('down6'):
         features_down6_skip_conn, features_down6 = bn_conv_relu_3_maxpool(features_down5, 64)
 
-    with tf.name_scope('up1'):
+    with tf.variable_scope('up1'):
         features_up1 = bn_conv_relu(features_down6, 64)
         features_up1 = bn_conv_relu(features_up1, 64)
         features_up1 = bn_upconv_relu(features_up1, 64)
 
-    with tf.name_scope('up2'):
+    with tf.variable_scope('up2'):
         features_up2 = concat_bn_conv_relu_2_bn_upconv_relu(features_down6_skip_conn, features_up1)
-    with tf.name_scope('up3'):
+    with tf.variable_scope('up3'):
         features_up3 = concat_bn_conv_relu_2_bn_upconv_relu(features_down5_skip_conn, features_up2)
-    with tf.name_scope('up4'):
+    with tf.variable_scope('up4'):
         features_up4 = concat_bn_conv_relu_2_bn_upconv_relu(features_down4_skip_conn, features_up3)
-    with tf.name_scope('up5'):
+    with tf.variable_scope('up5'):
         features_up5 = concat_bn_conv_relu_2_bn_upconv_relu(features_down3_skip_conn, features_up4)
 
-    with tf.name_scope('up6'):
+    with tf.variable_scope('up6'):
         features_up6 = concat_bn_conv_relu_2(features_down2_skip_conn, features_up5)
         features_up6 = convout(features_up6)
 
