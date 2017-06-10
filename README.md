@@ -3,18 +3,14 @@ TODO visualize results
 TODO use two images in batch, maybe more
 TODO add augmentations
 
-Q is batch norm a sort of normalization?
 Q combine batch norm with dropout or L2 loss?
     batch norm -> initialization
     dropout, L2 -> regularization
 
 
 first
-TODO visualize first layer
-TODO monitor especially first layer weights
+TODO histogram for activations
 TODO use w = np.random.randn(n) * sqrt(2.0/n), where n x no inputs to unit (neuron)
-TODO init bias to 0
-TODO batch norm between conv and relu
 
 
 
