@@ -50,19 +50,20 @@ class TrainValidate(object):
         return TrainValidate(self.train.map(f), self.validate.map(f))
 
 
-def conv_relu(features, filters):
+def conv_relu(features, filters, name='conv_relu'):
     return tf.layers.conv2d(
         features,
         filters=filters,
         kernel_size=3,
         padding='same',
-        activation=tf.nn.relu
+        activation=tf.nn.relu,
+        name=name
     )
 
 
-def bn_conv_relu(features, filters):
-    return conv_relu(features, filters)
-    # return conv_relu(tf.layers.batch_normalization(features), filters)
+def bn_conv_relu(features, filters, name='bn_conv_relu'):
+    return conv_relu(features, filters, name=name)
+    # return conv_relu(tf.layers.batch_normalization(features), filters, name=name)
 
 
 def max_pool(features):
@@ -74,47 +75,52 @@ def max_pool(features):
     )
 
 
-def bn_conv_relu_3_maxpool(features, channels):
-    out = bn_conv_relu(features, channels)
-    out_skip_conn = bn_conv_relu(out, channels)
-    out = bn_conv_relu(out_skip_conn, channels)
-    out = max_pool(out)
-    return out_skip_conn, out
+def bn_conv_relu_3_maxpool(features, channels, name='bn_conv_relu_3_maxpool'):
+    with tf.name_scope(name):
+        out = bn_conv_relu(features, channels)
+        out_skip_conn = bn_conv_relu(out, channels)
+        out = bn_conv_relu(out_skip_conn, channels)
+        out = max_pool(out)
+        return out_skip_conn, out
 
 
-def upconv_relu(features, filters):
+def upconv_relu(features, filters, name='upconv_relu'):
     return tf.layers.conv2d_transpose(
         features,
         filters=filters,
         kernel_size=4,
         strides=2,
         padding='same',
-        activation=tf.nn.relu
+        activation=tf.nn.relu,
+        name=name
     )
 
 
-def bn_upconv_relu(features, filters):
-    # return upconv_relu(tf.layers.batch_normalization(features), filters)
-    return upconv_relu(features, filters)
+def bn_upconv_relu(features, filters, name='bn_upconv_relu'):
+    # return upconv_relu(tf.layers.batch_normalization(features), filters, name=name)
+    return upconv_relu(features, filters, name=name)
 
 
-def concat_bn_conv_relu_2(features_down, features_up):
-    out = tf.concat([features_down, features_up], axis=3)
-    out = bn_conv_relu(out, 96)
-    return bn_conv_relu(out, 64)
+def concat_bn_conv_relu_2(features_down, features_up, name='concat_bn_conv_relu_2'):
+    with tf.name_scope(name):
+        out = tf.concat([features_down, features_up], axis=3)
+        out = bn_conv_relu(out, 96)
+        return bn_conv_relu(out, 64)
 
 
-def concat_bn_conv_relu_2_bn_upconv_relu(features_down, features_up):
-    out = concat_bn_conv_relu_2(features_down, features_up)
-    return bn_upconv_relu(out, 64)
+def concat_bn_conv_relu_2_bn_upconv_relu(features_down, features_up, name='concat_bn_conv_relu_2_bn_upconv_relu'):
+    with tf.name_scope(name):
+        out = concat_bn_conv_relu_2(features_down, features_up)
+        return bn_upconv_relu(out, 64)
 
 
-def convout(features):
+def convout(features, name='convout'):
     return tf.layers.conv2d(
         features,
         filters=3,
         kernel_size=1,
-        strides=1
+        strides=1,
+        name=name
     )
 
 
