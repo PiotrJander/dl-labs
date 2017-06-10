@@ -282,7 +282,7 @@ class Model(object):
                 # for i in count():
                 # self.run_all_summaries(sess, writer)
 
-                for i in range(5):
+                for i in range(50):
                     for j in range(0, TRAIN_SET_SIZE // BATCH_SIZE):
                         loss, acc, summ = self.train_on_batch(sess)
                         if j % 20 == 0:
