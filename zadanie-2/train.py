@@ -22,7 +22,7 @@ AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 HALF_IMAGE_SIZE = 325
 IMAGE_SIZE = 256
 CHANNELS = 3
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-5
 IMAGE_TRANSFORMATION_NUMBER = 8
 num_preprocess_threads = 2
 min_queue_examples = 64
@@ -61,10 +61,8 @@ def conv_relu(features, filters):
 
 
 def bn_conv_relu(features, filters):
-    return conv_relu(
-        tf.layers.batch_normalization(features),
-        filters
-    )
+    return conv_relu(features, filters)
+    # return conv_relu(tf.layers.batch_normalization(features), filters)
 
 
 def max_pool(features):
@@ -96,7 +94,8 @@ def upconv_relu(features, filters):
 
 
 def bn_upconv_relu(features, filters):
-    return upconv_relu(tf.layers.batch_normalization(features), filters)
+    # return upconv_relu(tf.layers.batch_normalization(features), filters)
+    return upconv_relu(features, filters)
 
 
 def concat_bn_conv_relu_2(features_down, features_up):
