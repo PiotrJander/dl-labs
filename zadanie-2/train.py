@@ -22,7 +22,7 @@ AUGMENTED_BATCH_SIZE = 8 * BATCH_SIZE
 HALF_IMAGE_SIZE = 325
 IMAGE_SIZE = 256
 CHANNELS = 3
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 1e-3
 IMAGE_TRANSFORMATION_NUMBER = 8
 num_preprocess_threads = 2
 min_queue_examples = 64
@@ -119,33 +119,64 @@ def convout(features):
 
 
 def conv_net(features):
-    features_down1 = conv_relu(features, 64)
+    features_down1 = conv_relu(features, 20)
+    features_down2 = conv_relu(features_down1, 3)
 
-    features_down2_skip_conn = bn_conv_relu(features_down1, 64)
-    features_down2 = bn_conv_relu(features_down2_skip_conn, 64)
-    features_down2 = max_pool(features_down2)
-
-    features_down3_skip_conn, features_down3 = bn_conv_relu_3_maxpool(features_down2, 64)
-    features_down4_skip_conn, features_down4 = bn_conv_relu_3_maxpool(features_down3, 64)
-    features_down5_skip_conn, features_down5 = bn_conv_relu_3_maxpool(features_down4, 64)
-    features_down6_skip_conn, features_down6 = bn_conv_relu_3_maxpool(features_down5, 64)
-
-    features_up1 = bn_conv_relu(features_down6, 64)
-    features_up1 = bn_conv_relu(features_up1, 64)
-    features_up1 = bn_upconv_relu(features_up1, 64)
-
-    features_up2 = concat_bn_conv_relu_2_bn_upconv_relu(features_down6_skip_conn, features_up1)
-    features_up3 = concat_bn_conv_relu_2_bn_upconv_relu(features_down5_skip_conn, features_up2)
-    features_up4 = concat_bn_conv_relu_2_bn_upconv_relu(features_down4_skip_conn, features_up3)
-    features_up5 = concat_bn_conv_relu_2_bn_upconv_relu(features_down3_skip_conn, features_up4)
-
-    features_up6 = concat_bn_conv_relu_2(features_down2_skip_conn, features_up5)
-    features_up6 = convout(features_up6)
+    # features_down2_skip_conn = bn_conv_relu(features_down1, 64)
+    # features_down2 = bn_conv_relu(features_down2_skip_conn, 64)
+    # features_down2 = max_pool(features_down2)
+    #
+    # features_down3_skip_conn, features_down3 = bn_conv_relu_3_maxpool(features_down2, 64)
+    # features_down4_skip_conn, features_down4 = bn_conv_relu_3_maxpool(features_down3, 64)
+    # features_down5_skip_conn, features_down5 = bn_conv_relu_3_maxpool(features_down4, 64)
+    # features_down6_skip_conn, features_down6 = bn_conv_relu_3_maxpool(features_down5, 64)
+    #
+    # features_up1 = bn_conv_relu(features_down6, 64)
+    # features_up1 = bn_conv_relu(features_up1, 64)
+    # features_up1 = bn_upconv_relu(features_up1, 64)
+    #
+    # features_up2 = concat_bn_conv_relu_2_bn_upconv_relu(features_down6_skip_conn, features_up1)
+    # features_up3 = concat_bn_conv_relu_2_bn_upconv_relu(features_down5_skip_conn, features_up2)
+    # features_up4 = concat_bn_conv_relu_2_bn_upconv_relu(features_down4_skip_conn, features_up3)
+    # features_up5 = concat_bn_conv_relu_2_bn_upconv_relu(features_down3_skip_conn, features_up4)
+    #
+    # features_up6 = concat_bn_conv_relu_2(features_down2_skip_conn, features_up5)
+    # features_up6 = convout(features_up6)
 
     for k, t in locals().items():
         tf.summary.histogram(k, t)
 
-    return features_up6
+    return features_down2
+
+
+# def conv_net(features):
+#     features_down1 = conv_relu(features, 64)
+#
+#     features_down2_skip_conn = bn_conv_relu(features_down1, 64)
+#     features_down2 = bn_conv_relu(features_down2_skip_conn, 64)
+#     features_down2 = max_pool(features_down2)
+#
+#     features_down3_skip_conn, features_down3 = bn_conv_relu_3_maxpool(features_down2, 64)
+#     features_down4_skip_conn, features_down4 = bn_conv_relu_3_maxpool(features_down3, 64)
+#     features_down5_skip_conn, features_down5 = bn_conv_relu_3_maxpool(features_down4, 64)
+#     features_down6_skip_conn, features_down6 = bn_conv_relu_3_maxpool(features_down5, 64)
+#
+#     features_up1 = bn_conv_relu(features_down6, 64)
+#     features_up1 = bn_conv_relu(features_up1, 64)
+#     features_up1 = bn_upconv_relu(features_up1, 64)
+#
+#     features_up2 = concat_bn_conv_relu_2_bn_upconv_relu(features_down6_skip_conn, features_up1)
+#     features_up3 = concat_bn_conv_relu_2_bn_upconv_relu(features_down5_skip_conn, features_up2)
+#     features_up4 = concat_bn_conv_relu_2_bn_upconv_relu(features_down4_skip_conn, features_up3)
+#     features_up5 = concat_bn_conv_relu_2_bn_upconv_relu(features_down3_skip_conn, features_up4)
+#
+#     features_up6 = concat_bn_conv_relu_2(features_down2_skip_conn, features_up5)
+#     features_up6 = convout(features_up6)
+#
+#     for k, t in locals().items():
+#         tf.summary.histogram(k, t)
+#
+#     return features_up6
 
 
 def augment_image(image):
