@@ -1,3 +1,28 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 TODO rescale to original resolution of 650
 TODO visualize results
 TODO use two images in batch, maybe more
