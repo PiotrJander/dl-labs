@@ -1,4 +1,6 @@
-
+Q should we use bigger batches or just one?
+-> bigger batch -> we compute gradient only once
+    and it goes in better direction
 
 
 
