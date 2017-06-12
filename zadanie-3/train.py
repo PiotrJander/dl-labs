@@ -39,16 +39,6 @@ class Model(object):
 
                 hx = tf.concat([h, x], axis=1)
 
-                # gates = {k: {} for k in ifog}
-                #
-                # for k in ifg:
-                #     name = 'w_' + k
-                #     gates[k][weight] = tf.get_variable(name, shape=[CONCAT_SIZE, CONVEYOR_SIZE],
-                #                                        initializer=tf.random_normal_initializer())
-                # else:
-                #     gates['o'][weight] = tf.get_variable('w_o', shape=[CONCAT_SIZE, HIDDEN_STATE_SIZE],
-                #                                          initializer=tf.random_normal_initializer())
-
                 ifg_shape = [CONCAT_SIZE, CONVEYOR_SIZE]
                 o_shape = [CONCAT_SIZE, HIDDEN_STATE_SIZE]
                 w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=tf.random_normal_initializer())
@@ -63,27 +53,10 @@ class Model(object):
 
                 init_lsmt = tf.variables_initializer([w_i, w_f, w_o, w_g, b_i, b_f, b_o, b_g])
 
-                # init_lsmt = tf.variables_initializer([gates[k][weight] for k in ifog] + [gates[k][bias] for k in ifog])
-
-                # for k in ifg:
-                #     name = 'b_' + k
-                #     gates[k][bias] = tf.get_variable(name, shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
-                # else:
-                #     gates['o'][bias] = tf.get_variable('b_o', shape=[1, HIDDEN_STATE_SIZE],
-                #                                        initializer=tf.zeros_initializer())
-
                 i = tf.sigmoid(tf.matmul(hx, w_i) + b_i)
                 f = tf.sigmoid(tf.matmul(hx, w_f) + b_f)
                 o = tf.sigmoid(tf.matmul(hx, w_o) + b_o)
                 g = tf.tanh(tf.matmul(hx, w_g) + b_g)
-
-                # for k in ifo:
-                #     gates[k][value] = tf.sigmoid(tf.matmul(hx, gates[k][weight]) + gates[k][bias])
-                # else:
-                #     gates['g'][value] = tf.tanh(tf.matmul(hx, gates['g'][weight]) + gates['g'][bias])
-
-                # new_c = gates['f'][value] * c + gates['i'][value] * gates['g'][value]
-                # new_h = gates['o'][value] * tf.tanh(new_c)
 
                 new_c = f * c + i * g
                 new_h = o * tf.tanh(new_c)
