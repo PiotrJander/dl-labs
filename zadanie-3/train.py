@@ -14,8 +14,10 @@ BATCH_SIZE = 50
 
 class Model(object):
     def __init__(self):
-        self.images = tf.placeholder(tf.float32, [None, 28 ** 2])
-        self.labels = tf.placeholder(tf.float32, [None, 10])
+        # self.images = tf.placeholder(tf.float32, [None, 28 ** 2])
+        # self.labels = tf.placeholder(tf.float32, [None, 10])
+        self.images = tf.placeholder(tf.float32, [BATCH_SIZE, 28 ** 2])
+        self.labels = tf.placeholder(tf.float32, [BATCH_SIZE, 10])
 
         images_reshaped = tf.reshape(self.images, shape=[-1, 28, 28])
         images_reshaped = tf.expand_dims(images_reshaped, axis=3)
@@ -45,16 +47,24 @@ class Model(object):
                 y = tf.matmul(w_hy, new_h)
                 return new_h, y
 
-        def rnn_net(x):
-            x_rows = tf.unstack(x)
-            h = tf.random_normal(shape=[STATE_SIZE, 1], dtype=tf.float32)
-            for i, row in enumerate(x_rows):
-                h, y = rnn_cell(h, row, reuse_variables=(i > 0))
+        def rnn_net(x, name='rnn_net', reuse_variables=False):
+            with tf.variable_scope(name):
+                if reuse_variables:
+                    tf.get_variable_scope().reuse_variables()
 
-            # noinspection PyUnboundLocalVariable
-            return y
+                x_rows = tf.unstack(x, axis=1)
+                h = tf.random_normal(shape=[STATE_SIZE, 1], dtype=tf.float32)
+                for i, row in enumerate(x_rows):
+                    h, y = rnn_cell(h, row, reuse_variables=(i > 0))
 
-        self.run_batch = tf.map_fn(rnn_net, images_reshaped)
+                # noinspection PyUnboundLocalVariable
+                return y
+
+        # self.run_batch = tf.map_fn(rnn_net, images_reshaped)
+        # self.run_batch = rnn_net(images_reshaped[0])
+        self.run_batch = rnn_net(images_reshaped)
+        # self.run_batch = tf.stack([
+        #     rnn_net(x, reuse_variables=(i > 0)) for i, x in enumerate(tf.unstack(images_reshaped))])
 
         self.init = tf.global_variables_initializer()
 
