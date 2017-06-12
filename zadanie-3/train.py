@@ -30,7 +30,6 @@ class Model(object):
         self.labels = tf.placeholder(tf.float32, [BATCH_SIZE, 10])
 
         images_reshaped = tf.reshape(self.images, shape=[BATCH_SIZE, 28, 28])
-        # images_reshaped = tf.expand_dims(images_reshaped, axis=3)
 
         def lstm(c, h, x, name='lstm', reuse_variables=False):
             with tf.variable_scope(name):
@@ -63,33 +62,33 @@ class Model(object):
 
                 return new_c, new_h, init_lsmt
 
-        # def rnn_net(x, name='rnn_net', reuse_variables=False):
-        #     with tf.variable_scope(name):
-        #         if reuse_variables:
-        #             tf.get_variable_scope().reuse_variables()
-        #
-        #         x_rows = tf.unstack(x, axis=1)
-        #         h = tf.random_normal(shape=[HIDDEN_STATE_SIZE, BATCH_SIZE], dtype=tf.float32)
-        #         for c, row in enumerate(x_rows):
-        #             h, y = rnn_cell(h, row, reuse_variables=(c > 0))
-        #
-        #         # noinspection PyUnboundLocalVariable
-        #         return y
-        #
-        # self.run_batch = rnn_net(images_reshaped)
+        def rnn_net(x, name='rnn_net'):
+            with tf.variable_scope(name):
+                x_rows = tf.unstack(x, axis=1)
+                c = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
+                h = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+                for i, row in enumerate(x_rows):
+                    c, h, init_lstm = lstm(c, h, row, reuse_variables=(i > 0))
+
+                # noinspection PyUnboundLocalVariable
+                return h, init_lstm
+
+        run_batch, init_lstm = rnn_net(images_reshaped)
 
         self.init = tf.global_variables_initializer()
-
-        first_input = tf.random_normal(shape=[BATCH_SIZE, 28])
-        second_input = tf.random_normal(shape=[BATCH_SIZE, 28])
-        start_conveyor = tf.random_normal(shape=[BATCH_SIZE, CONVEYOR_SIZE])
-        start_hidden_state = tf.random_normal(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE])
-        c, h, init_lstm = lstm(start_conveyor, start_hidden_state, first_input)
-        _, out, _ = lstm(c, h, second_input, reuse_variables=True)
-
-        self.f = tf.Print(h, [h])
-        self.s = tf.Print(out, [out])
         self.init_lstm = init_lstm
+        self.run_batch = run_batch
+
+        # first_input = tf.random_normal(shape=[BATCH_SIZE, 28])
+        # second_input = tf.random_normal(shape=[BATCH_SIZE, 28])
+        # start_conveyor = tf.random_normal(shape=[BATCH_SIZE, CONVEYOR_SIZE])
+        # start_hidden_state = tf.random_normal(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE])
+        # c, h, init_lstm = lstm(start_conveyor, start_hidden_state, first_input)
+        # _, out, _ = lstm(c, h, second_input, reuse_variables=True)
+        #
+        # self.f = tf.Print(h, [h])
+        # self.s = tf.Print(out, [out])
+        # self.init_lstm = init_lstm
 
     def train(self):
         mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
@@ -101,8 +100,8 @@ class Model(object):
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
             batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
             sess.run([self.init, self.init_lstm])
-            sess.run([self.f, self.s])
-            # sess.run(self.run_batch, feed_dict={self.images: batch_x})
+            t = sess.run(self.run_batch, feed_dict={self.images: batch_x})
+            print(t)
 
 
 if __name__ == '__main__':
