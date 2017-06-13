@@ -36,7 +36,8 @@ class LSTM(object):
         with tf.variable_scope(name):
             ifg_shape = [concat_size, conveyor_size]
             o_shape = [concat_size, hidden_state_size]
-            w_initializer = tf.random_normal_initializer(stddev=1 / concat_size)
+            # w_initializer = tf.random_normal_initializer(stddev=1 / concat_size)
+            w_initializer = tf.random_normal_initializer(stddev=5 / concat_size)
             self.w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=w_initializer)
             self.w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=w_initializer)
             self.w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
@@ -103,7 +104,7 @@ class Model(object):
 
                 with tf.variable_scope('final_dense'):
                     weights = tf.get_variable('weights', shape=[HIDDEN_STATE_SIZE, 10],
-                                              initializer=tf.random_normal_initializer())
+                                              initializer=tf.random_normal_initializer(stddev=1 / HIDDEN_STATE_SIZE))
                     bias = tf.get_variable('bias', shape=[1, 10], initializer=tf.zeros_initializer())
                     ret = tf.matmul(h1, weights) + bias
 

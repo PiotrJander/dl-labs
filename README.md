@@ -1,6 +1,7 @@
 TODO gradient clipping
-TODO multilevel
-
+TODO any number of levels
+TODO visualize gradients with Adam
+TODO init weights seem way too high; bigger var?
 
 
 
