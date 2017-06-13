@@ -1,6 +1,7 @@
 from __future__ import print_function, generators, division
 
 import os
+import sys
 
 import datetime
 import tensorflow as tf
@@ -120,6 +121,7 @@ class Model(object):
                     print("Iter " + str(i) + ", Minibatch Loss= " +
                           "{:.6f}".format(loss) + ", Training Accuracy= " +
                           "{:.5f}".format(acc))
+                    sys.stdout.flush()
 
             #     # vaildate at the end of every epoch
             #     if i % epoch_size == 0:
