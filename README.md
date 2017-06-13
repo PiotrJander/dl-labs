@@ -1,4 +1,4 @@
-TODO visualize weight histograms
+TODO visualize gradient magnitude, maybe gradient clipping
 
 
 
