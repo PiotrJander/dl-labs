@@ -1,6 +1,7 @@
 TODO now tell test and train
 
-
+TODO display image (expand_dims, mult, cast to )
+TODO then pad with 1
 
 
 

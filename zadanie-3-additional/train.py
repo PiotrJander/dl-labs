@@ -93,6 +93,8 @@ class Model(object):
             images = tf.pad(images, [[0, 0], [0, 28 ** 2 - shape_dim_1]])
             images = tf.reshape(images, [BATCH_SIZE, 28, 28])
 
+            tf.summary.image('augmented_image', tf.cast(tf.expand_dims(256 * images[:3], axis=3), dtype=tf.uint8))
+
             images = tf.cond(self.augment, lambda: images, lambda: images_no_augmentation)
 
         def rnn_net(x, name='lstm_net'):
