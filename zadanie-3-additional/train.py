@@ -37,7 +37,7 @@ class LSTM(object):
             ifg_shape = [concat_size, conveyor_size]
             o_shape = [concat_size, hidden_state_size]
             # w_initializer = tf.random_normal_initializer(stddev=1 / concat_size)
-            w_initializer = tf.random_normal_initializer(stddev=5 / concat_size)
+            w_initializer = tf.random_normal_initializer(stddev=1 / concat_size)
             self.w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=w_initializer)
             self.w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=w_initializer)
             self.w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
@@ -81,38 +81,48 @@ class Model(object):
             with tf.variable_scope(name):
                 x_rows = tf.unstack(x, axis=1)
 
-                lstm_first = LSTM(conveyor_size=CONVEYOR_SIZE,
-                                  hidden_state_size=HIDDEN_STATE_SIZE,
-                                  input_size=28,
-                                  name='first_lstm')
-                lstm_second = LSTM(conveyor_size=CONVEYOR_SIZE,
-                                   hidden_state_size=HIDDEN_STATE_SIZE,
-                                   input_size=HIDDEN_STATE_SIZE,
-                                   name='second_lstm')
+                # lstm_first = LSTM(conveyor_size=CONVEYOR_SIZE,
+                #                   hidden_state_size=HIDDEN_STATE_SIZE,
+                #                   input_size=28,
+                #                   name='first_lstm')
+                # lstm_second = LSTM(conveyor_size=CONVEYOR_SIZE,
+                #                    hidden_state_size=HIDDEN_STATE_SIZE,
+                #                    input_size=HIDDEN_STATE_SIZE,
+                #                    name='second_lstm')
 
-                c0 = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
-                c1 = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
-                h0 = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
-                h1 = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+                def lstm(i, input_size):
+                    return LSTM(conveyor_size=CONVEYOR_SIZE,
+                                hidden_state_size=HIDDEN_STATE_SIZE,
+                                input_size=input_size,
+                                name='lstm_%d' % i)
+
+                def deep_lstm(i):
+                    return lstm(i, HIDDEN_STATE_SIZE)
+
+                lstms = [lstm(0, 28)] + [deep_lstm(i) for i in range(1, LAYERS)]
+
+                c = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
+                h = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+
+                conveyor = [c for _ in range(LAYERS)]
+                hidden = [h for _ in range(LAYERS)]
 
                 for i, row in enumerate(x_rows):
-                    # for i in range(LAYERS):
-                    c0, h0 = lstm_first(c0, h0, row)
-                    c1, h1 = lstm_second(c1, h1, h0)
-
-                    # c, h, init_lstm = lstm(c, h, row, reuse_variables=(i > 0))
+                    conveyor[0], hidden[0] = lstms[0](conveyor[0], hidden[0], row)
+                    for i in range(1, LAYERS):
+                        conveyor[i], hidden[i] = lstms[i](conveyor[i], hidden[i], hidden[i - 1])
 
                 with tf.variable_scope('final_dense'):
                     weights = tf.get_variable('weights', shape=[HIDDEN_STATE_SIZE, 10],
                                               initializer=tf.random_normal_initializer(stddev=1 / HIDDEN_STATE_SIZE))
                     bias = tf.get_variable('bias', shape=[1, 10], initializer=tf.zeros_initializer())
-                    ret = tf.matmul(h1, weights) + bias
+                    ret = tf.matmul(hidden[-1], weights) + bias
 
                 # noinspection PyUnboundLocalVariable
-                return ret, lstm_first.init_lsmt, lstm_second.init_lsmt
+                return ret, [cell.init_lsmt for cell in lstms]
 
         with tf.name_scope('model'):
-            pred, init_lstm0, init_lstm1 = rnn_net(images_reshaped)
+            pred, _ = rnn_net(images_reshaped)
 
         with tf.name_scope('loss'):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
@@ -139,7 +149,8 @@ class Model(object):
         # for grad, var in grads:
         #     tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.init = [tf.global_variables_initializer(), init_lstm0, init_lstm1]
+        # self.init = [tf.global_variables_initializer()]
+        self.init = tf.global_variables_initializer()
 
         self.summary = tf.summary.merge_all()
 
