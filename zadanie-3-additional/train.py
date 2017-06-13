@@ -191,7 +191,7 @@ class Model(object):
                                                   # loss, acc = sess.run([self.cost, self.accuracy],
                                                   feed_dict={self.images: batch_x,
                                                              self.labels: batch_y,
-                                                             self.augment: True})
+                                                             self.augment: args.augment})
                     print("Iter " + str(i) + ", Minibatch Loss= " +
                           "{:.6f}".format(loss) + ", Training Accuracy= " +
                           "{:.5f}".format(acc))
@@ -231,6 +231,7 @@ def main():
     parser.add_argument('--init_from', type=str, default=None,
                         help="""continue training from saved model at this path. Path must contain files saved 
                         by previous training process""")
+    parser.add_argument('--augment', type=bool, default=False)
     args = parser.parse_args()
     Model().train(args)
 
