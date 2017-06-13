@@ -1,9 +1,4 @@
-TODO gradient clipping
-TODO any number of levels
-TODO visualize gradients with Adam
-
-TODO see if variables initialized
-
+TODO now tell test and train
 
 
 

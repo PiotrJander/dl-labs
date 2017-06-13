@@ -70,8 +70,30 @@ class Model(object):
     def __init__(self):
         self.images = tf.placeholder(tf.float32, [BATCH_SIZE, 28 ** 2])
         self.labels = tf.placeholder(tf.float32, [BATCH_SIZE, 10])
+        self.augment = tf.placeholder_with_default(False, shape=[])
 
-        images_reshaped = tf.reshape(self.images, shape=[BATCH_SIZE, 28, 28])
+        with tf.name_scope('augment'):
+            images_no_augmentation = tf.reshape(self.images, shape=[BATCH_SIZE, 28, 28])
+
+            size_gen = lambda: tf.random_uniform(shape=[], minval=24, maxval=29, dtype=tf.int32)
+            offset_gen = lambda size: tf.random_uniform(shape=[], minval=0, maxval=28 - size + 1, dtype=tf.int32)
+
+            width = size_gen()
+            height = size_gen()
+
+            x_offset = offset_gen(width)
+            y_offset = offset_gen(height)
+
+            images = images_no_augmentation[:, x_offset : x_offset + width, y_offset : y_offset + height]
+
+            images = tf.reshape(images, [BATCH_SIZE, -1])
+            shape_dim_1 = tf.shape(images)[1]
+            # remainder = tf.mod(shape_dim_1, 28)
+            # images = tf.pad(images, [[0, 0], [0, 0 if remainder == 0 else 28 - remainder]])
+            images = tf.pad(images, [[0, 0], [0, 28 ** 2 - shape_dim_1]])
+            images = tf.reshape(images, [BATCH_SIZE, 28, 28])
+
+            images = tf.cond(self.augment, lambda: images, lambda: images_no_augmentation)
 
         def rnn_net(x, name='lstm_net'):
             with tf.variable_scope(name):
@@ -109,7 +131,7 @@ class Model(object):
                 return ret, [cell.init_lsmt for cell in lstms]
 
         with tf.name_scope('model'):
-            pred, _ = rnn_net(images_reshaped)
+            pred, _ = rnn_net(images)
 
         with tf.name_scope('loss'):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
@@ -132,8 +154,8 @@ class Model(object):
 
         for var in tf.trainable_variables():
             tf.summary.histogram(var.name, var)
-        # for grad, var in grads:
-        #     tf.summary.histogram(var.name + '/gradient', grad)
+        for grad, var in grads:
+            tf.summary.histogram(var.name + '/gradient', grad)
 
         self.init = tf.global_variables_initializer()
 
@@ -166,7 +188,8 @@ class Model(object):
                     loss, acc, summary = sess.run([self.loss, self.accuracy, self.summary],
                                                   # loss, acc = sess.run([self.cost, self.accuracy],
                                                   feed_dict={self.images: batch_x,
-                                                             self.labels: batch_y})
+                                                             self.labels: batch_y,
+                                                             self.augment: True})
                     print("Iter " + str(i) + ", Minibatch Loss= " +
                           "{:.6f}".format(loss) + ", Training Accuracy= " +
                           "{:.5f}".format(acc))
