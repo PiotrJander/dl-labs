@@ -181,6 +181,10 @@ class Model(object):
                 if i % EPOCH_SIZE == 0:
                     validation_result = self.validate(mnist.validation, VALIDATION_SIZE)
                     print("Validation accuracy %g" % validation_result)
+
+                    print('Writer flushed')
+                    writer.flush()
+
                     if validation_result > 0.983:
                         break
 
