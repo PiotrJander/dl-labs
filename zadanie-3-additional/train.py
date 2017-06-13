@@ -10,10 +10,7 @@ import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 
 HIDDEN_STATE_SIZE = 100
-# HIDDEN_STATE_SIZE = 28
-CONCAT_SIZE = HIDDEN_STATE_SIZE + 28
 CONVEYOR_SIZE = 100
-# CONVEYOR_SIZE = 28
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 BATCH_SIZE = 100
 LEARNING_RATE = 1e-3
@@ -48,7 +45,6 @@ class LSTM(object):
             self.b_o = tf.get_variable('b_o', shape=[1, hidden_state_size], initializer=tf.zeros_initializer())
             self.b_g = tf.get_variable('b_g', shape=[1, conveyor_size], initializer=tf.zeros_initializer())
 
-            # self.init_lsmt = tf.variables_initializer([w_i, w_f, w_o, w_g, b_i, b_f, b_o, b_g])
             vars = ['w_i', 'w_f', 'w_o', 'w_g', 'b_i', 'b_f', 'b_o', 'b_g']
             self.init_lsmt = tf.variables_initializer([self.__dict__[k] for k in vars])
 
@@ -80,15 +76,6 @@ class Model(object):
         def rnn_net(x, name='lstm_net'):
             with tf.variable_scope(name):
                 x_rows = tf.unstack(x, axis=1)
-
-                # lstm_first = LSTM(conveyor_size=CONVEYOR_SIZE,
-                #                   hidden_state_size=HIDDEN_STATE_SIZE,
-                #                   input_size=28,
-                #                   name='first_lstm')
-                # lstm_second = LSTM(conveyor_size=CONVEYOR_SIZE,
-                #                    hidden_state_size=HIDDEN_STATE_SIZE,
-                #                    input_size=HIDDEN_STATE_SIZE,
-                #                    name='second_lstm')
 
                 def lstm(i, input_size):
                     return LSTM(conveyor_size=CONVEYOR_SIZE,
@@ -127,15 +114,14 @@ class Model(object):
         with tf.name_scope('loss'):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
 
-        with tf.name_scope('SGD'):
-            self.apply_grads = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.loss)
-
         # with tf.name_scope('SGD'):
-        #     # Gradient Descent
-        #     optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE)
-        #     grads = tf.gradients(self.loss, tf.trainable_variables())
-        #     grads = list(zip(grads, tf.trainable_variables()))
-        #     self.apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
+        #     self.apply_grads = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.loss)
+
+        with tf.name_scope('SGD'):
+            optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
+            grads = tf.gradients(self.loss, tf.trainable_variables())
+            grads = list(zip(grads, tf.trainable_variables()))
+            self.apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
 
         with tf.name_scope('accuracy'):
             correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(self.labels, 1))
@@ -149,7 +135,6 @@ class Model(object):
         # for grad, var in grads:
         #     tf.summary.histogram(var.name + '/gradient', grad)
 
-        # self.init = [tf.global_variables_initializer()]
         self.init = tf.global_variables_initializer()
 
         self.summary = tf.summary.merge_all()
