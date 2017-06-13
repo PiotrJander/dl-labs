@@ -9,10 +9,11 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 
-
 HIDDEN_STATE_SIZE = 100
+# HIDDEN_STATE_SIZE = 28
 CONCAT_SIZE = HIDDEN_STATE_SIZE + 28
 CONVEYOR_SIZE = 100
+# CONVEYOR_SIZE = 28
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 BATCH_SIZE = 100
 LEARNING_RATE = 1e-3
@@ -21,6 +22,51 @@ DISPLAY_STEP = 100
 EPOCH_SIZE = 1000
 VALIDATION_SIZE = 5000
 TEST_SIZE = 10000
+LAYERS = 2
+
+
+class LSTM(object):
+    def __init__(self, conveyor_size, hidden_state_size, input_size, name='lstm'):
+        super(LSTM, self).__init__()
+
+        self.name = name
+
+        concat_size = hidden_state_size + input_size
+
+        with tf.variable_scope(name):
+            ifg_shape = [concat_size, conveyor_size]
+            o_shape = [concat_size, hidden_state_size]
+            w_initializer = tf.random_normal_initializer(stddev=1 / concat_size)
+            self.w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=w_initializer)
+            self.w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=w_initializer)
+            self.w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
+            self.w_g = tf.get_variable('w_g', shape=ifg_shape, initializer=w_initializer)
+
+            self.b_i = tf.get_variable('b_i', shape=[1, conveyor_size], initializer=tf.zeros_initializer())
+            self.b_f = tf.get_variable('b_f', shape=[1, conveyor_size], initializer=tf.zeros_initializer())
+            self.b_o = tf.get_variable('b_o', shape=[1, hidden_state_size], initializer=tf.zeros_initializer())
+            self.b_g = tf.get_variable('b_g', shape=[1, conveyor_size], initializer=tf.zeros_initializer())
+
+            # self.init_lsmt = tf.variables_initializer([w_i, w_f, w_o, w_g, b_i, b_f, b_o, b_g])
+            vars = ['w_i', 'w_f', 'w_o', 'w_g', 'b_i', 'b_f', 'b_o', 'b_g']
+            self.init_lsmt = tf.variables_initializer([self.__dict__[k] for k in vars])
+
+    def __call__(self, c, h, x):
+        with tf.name_scope('call_%s' % self.name):
+            hx = tf.concat([h, x], axis=1)
+
+            i = tf.sigmoid(tf.matmul(hx, self.w_i) + self.b_i)
+            f = tf.sigmoid(tf.matmul(hx, self.w_f) + self.b_f)
+            o = tf.sigmoid(tf.matmul(hx, self.w_o) + self.b_o)
+            g = tf.tanh(tf.matmul(hx, self.w_g) + self.b_g)
+
+            new_c = f * c + i * g
+            new_h = o * tf.tanh(new_c)
+
+            # tf.summary.histogram('c', new_c)
+            # tf.summary.histogram('h', new_h)
+
+            return new_c, new_h
 
 
 class Model(object):
@@ -30,60 +76,42 @@ class Model(object):
 
         images_reshaped = tf.reshape(self.images, shape=[BATCH_SIZE, 28, 28])
 
-        def lstm(c, h, x, name='lstm', reuse_variables=False):
-            with tf.variable_scope(name):
-                if reuse_variables:
-                    tf.get_variable_scope().reuse_variables()
-
-                hx = tf.concat([h, x], axis=1)
-
-                ifg_shape = [CONCAT_SIZE, CONVEYOR_SIZE]
-                o_shape = [CONCAT_SIZE, HIDDEN_STATE_SIZE]
-                w_initializer = tf.random_normal_initializer(stddev=1 / CONCAT_SIZE)
-                w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=w_initializer)
-                w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=w_initializer)
-                w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
-                w_g = tf.get_variable('w_g', shape=ifg_shape, initializer=w_initializer)
-
-                b_i = tf.get_variable('b_i', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
-                b_f = tf.get_variable('b_f', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
-                b_o = tf.get_variable('b_o', shape=[1, HIDDEN_STATE_SIZE], initializer=tf.zeros_initializer())
-                b_g = tf.get_variable('b_g', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
-
-                init_lsmt = tf.variables_initializer([w_i, w_f, w_o, w_g, b_i, b_f, b_o, b_g])
-
-                i = tf.sigmoid(tf.matmul(hx, w_i) + b_i)
-                f = tf.sigmoid(tf.matmul(hx, w_f) + b_f)
-                o = tf.sigmoid(tf.matmul(hx, w_o) + b_o)
-                g = tf.tanh(tf.matmul(hx, w_g) + b_g)
-
-                new_c = f * c + i * g
-                new_h = o * tf.tanh(new_c)
-
-                # tf.summary.histogram('c', new_c)
-                # tf.summary.histogram('h', new_h)
-
-                return new_c, new_h, init_lsmt
-
         def rnn_net(x, name='lstm_net'):
             with tf.variable_scope(name):
                 x_rows = tf.unstack(x, axis=1)
-                c = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
-                h = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+
+                lstm_first = LSTM(conveyor_size=CONVEYOR_SIZE,
+                                  hidden_state_size=HIDDEN_STATE_SIZE,
+                                  input_size=28,
+                                  name='first_lstm')
+                lstm_second = LSTM(conveyor_size=CONVEYOR_SIZE,
+                                   hidden_state_size=HIDDEN_STATE_SIZE,
+                                   input_size=HIDDEN_STATE_SIZE,
+                                   name='second_lstm')
+
+                c0 = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
+                c1 = tf.zeros(shape=[BATCH_SIZE, CONVEYOR_SIZE], dtype=tf.float32)
+                h0 = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+                h1 = tf.zeros(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE], dtype=tf.float32)
+
                 for i, row in enumerate(x_rows):
-                    c, h, init_lstm = lstm(c, h, row, reuse_variables=(i > 0))
+                    # for i in range(LAYERS):
+                    c0, h0 = lstm_first(c0, h0, row)
+                    c1, h1 = lstm_second(c1, h1, h0)
+
+                    # c, h, init_lstm = lstm(c, h, row, reuse_variables=(i > 0))
 
                 with tf.variable_scope('final_dense'):
                     weights = tf.get_variable('weights', shape=[HIDDEN_STATE_SIZE, 10],
                                               initializer=tf.random_normal_initializer())
                     bias = tf.get_variable('bias', shape=[1, 10], initializer=tf.zeros_initializer())
-                    ret = tf.matmul(h, weights) + bias
+                    ret = tf.matmul(h1, weights) + bias
 
                 # noinspection PyUnboundLocalVariable
-                return ret, init_lstm
+                return ret, lstm_first.init_lsmt, lstm_second.init_lsmt
 
         with tf.name_scope('model'):
-            pred, init_lstm = rnn_net(images_reshaped)
+            pred, init_lstm0, init_lstm1 = rnn_net(images_reshaped)
 
         with tf.name_scope('loss'):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
@@ -110,7 +138,7 @@ class Model(object):
         for grad, var in grads:
             tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.init = [tf.global_variables_initializer(), init_lstm]
+        self.init = [tf.global_variables_initializer(), init_lstm0, init_lstm1]
 
         self.summary = tf.summary.merge_all()
 

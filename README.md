@@ -1,4 +1,5 @@
-TODO visualize gradient magnitude, maybe gradient clipping
+TODO gradient clipping
+TODO multilevel
 
 
 
