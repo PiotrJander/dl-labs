@@ -116,15 +116,15 @@ class Model(object):
         with tf.name_scope('loss'):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
 
-        # with tf.name_scope('SGD'):
-        #     self.optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.cost)
-
         with tf.name_scope('SGD'):
-            # Gradient Descent
-            optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE)
-            grads = tf.gradients(self.loss, tf.trainable_variables())
-            grads = list(zip(grads, tf.trainable_variables()))
-            self.apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.cost)
+
+        # with tf.name_scope('SGD'):
+        #     # Gradient Descent
+        #     optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE)
+        #     grads = tf.gradients(self.loss, tf.trainable_variables())
+        #     grads = list(zip(grads, tf.trainable_variables()))
+        #     self.apply_grads = optimizer.apply_gradients(grads_and_vars=grads)
 
         with tf.name_scope('accuracy'):
             correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(self.labels, 1))

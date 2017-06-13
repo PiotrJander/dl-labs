@@ -142,3 +142,5 @@ fabric.properties
 
 # custom
 lab5/MNIST_data/
+*/logs/*
+*/save/*
