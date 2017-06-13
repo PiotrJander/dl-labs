@@ -44,10 +44,14 @@ class Model(object):
                 w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
                 w_g = tf.get_variable('w_g', shape=ifg_shape, initializer=w_initializer)
 
+                tf.summary.histogram('w_i', w_i)
+
                 b_i = tf.get_variable('b_i', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
                 b_f = tf.get_variable('b_f', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
                 b_o = tf.get_variable('b_o', shape=[1, HIDDEN_STATE_SIZE], initializer=tf.zeros_initializer())
                 b_g = tf.get_variable('b_g', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
+
+                tf.summary.histogram('b_i', b_i)
 
                 init_lsmt = tf.variables_initializer([w_i, w_f, w_o, w_g, b_i, b_f, b_o, b_g])
 
@@ -56,8 +60,13 @@ class Model(object):
                 o = tf.sigmoid(tf.matmul(hx, w_o) + b_o)
                 g = tf.tanh(tf.matmul(hx, w_g) + b_g)
 
+                tf.summary.histogram('i', i)
+
                 new_c = f * c + i * g
                 new_h = o * tf.tanh(new_c)
+
+                tf.summary.histogram('c', new_c)
+                tf.summary.histogram('h', new_h)
 
                 return new_c, new_h, init_lsmt
 
@@ -85,6 +94,9 @@ class Model(object):
 
         correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(self.labels, 1))
         self.accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+        tf.summary.scalar('loss', self.cost)
+        tf.summary.scalar('accuracy', self.accuracy)
 
         self.init = [tf.global_variables_initializer(), init_lstm]
 
@@ -115,6 +127,7 @@ class Model(object):
                 sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
                 if i % DISPLAY_STEP == 0:
                     loss, acc, summary = sess.run([self.cost, self.accuracy, self.summary],
+                    # loss, acc = sess.run([self.cost, self.accuracy],
                                                   feed_dict={self.images: batch_x,
                                                              self.labels: batch_y})
                     print("Iter " + str(i) + ", Minibatch Loss= " +
