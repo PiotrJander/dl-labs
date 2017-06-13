@@ -117,7 +117,7 @@ class Model(object):
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=self.labels))
 
         with tf.name_scope('SGD'):
-            self.optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.cost)
+            self.apply_grads = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(self.loss)
 
         # with tf.name_scope('SGD'):
         #     # Gradient Descent
@@ -135,8 +135,8 @@ class Model(object):
 
         for var in tf.trainable_variables():
             tf.summary.histogram(var.name, var)
-        for grad, var in grads:
-            tf.summary.histogram(var.name + '/gradient', grad)
+        # for grad, var in grads:
+        #     tf.summary.histogram(var.name + '/gradient', grad)
 
         self.init = [tf.global_variables_initializer(), init_lstm0, init_lstm1]
 
