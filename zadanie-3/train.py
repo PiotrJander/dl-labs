@@ -12,13 +12,9 @@ CONVEYOR_SIZE = 100
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
 BATCH_SIZE = 50
 LEARNING_RATE = 1e-3
-
-weight = 'weight'
-bias = 'bias'
-value = 'value'
-ifog = list('ifog')
-ifg = list('ifg')
-ifo = list('ifo')
+TRAINING_ITERS = 20000
+DISPLAY_STEP = 100
+EPOCH_SIZE = 1000
 
 
 class Model(object):
@@ -109,9 +105,37 @@ class Model(object):
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
             batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
             sess.run(self.init)
-            _, cost, acc = sess.run([self.optimizer, self.cost, self.accuracy],
-                                    feed_dict={self.images: batch_x, self.labels: batch_y})
-            print(cost, acc)
+
+            # _, cost, acc = sess.run([self.optimizer, self.cost, self.accuracy],
+            #                         feed_dict={self.images: batch_x, self.labels: batch_y})
+            # print(cost, acc)
+
+            # for i in range(training_iters):
+            #     batch_x, batch_y = mnist.train.next_batch(batch_size)
+            #     # Run optimization op (backprop)
+            #     sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
+            #     if i % display_step == 0:
+            #         # Calculate batch loss and accuracy
+            #         loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
+            #                                                           y: batch_y})
+            #         print("Iter " + str(i) + ", Minibatch Loss= " + \
+            #               "{:.6f}".format(loss) + ", Training Accuracy= " + \
+            #               "{:.5f}".format(acc))
+            #
+            #     # vaildate at the end of every epoch
+            #     if i % epoch_size == 0:
+            #         validation_acc = accuracy.eval(feed_dict={x: mnist.validation.images,
+            #                                                   y: mnist.validation.labels})
+            #         validation_results.append(validation_acc)
+            #         print("Validation accuracy %g" % validation_acc)
+            #
+            #         if validation_acc >= 0.991:
+            #             break
+            #
+            # print("Optimization Finished!")
+            # print("test accuracy %g" % accuracy.eval(feed_dict={
+            #     x: mnist.test.images, y: mnist.test.labels}))
+            # print(validation_results)
 
 
 if __name__ == '__main__':
