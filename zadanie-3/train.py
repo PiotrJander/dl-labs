@@ -35,10 +35,11 @@ class Model(object):
 
                 ifg_shape = [CONCAT_SIZE, CONVEYOR_SIZE]
                 o_shape = [CONCAT_SIZE, HIDDEN_STATE_SIZE]
-                w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=tf.random_normal_initializer())
-                w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=tf.random_normal_initializer())
-                w_o = tf.get_variable('w_o', shape=o_shape, initializer=tf.random_normal_initializer())
-                w_g = tf.get_variable('w_g', shape=ifg_shape, initializer=tf.random_normal_initializer())
+                w_initializer = tf.random_normal_initializer(stddev=1 / CONCAT_SIZE)
+                w_i = tf.get_variable('w_i', shape=ifg_shape, initializer=w_initializer)
+                w_f = tf.get_variable('w_f', shape=ifg_shape, initializer=w_initializer)
+                w_o = tf.get_variable('w_o', shape=o_shape, initializer=w_initializer)
+                w_g = tf.get_variable('w_g', shape=ifg_shape, initializer=w_initializer)
 
                 b_i = tf.get_variable('b_i', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
                 b_f = tf.get_variable('b_f', shape=[1, CONVEYOR_SIZE], initializer=tf.zeros_initializer())
@@ -110,18 +111,16 @@ class Model(object):
             #                         feed_dict={self.images: batch_x, self.labels: batch_y})
             # print(cost, acc)
 
-            # for i in range(training_iters):
-            #     batch_x, batch_y = mnist.train.next_batch(batch_size)
-            #     # Run optimization op (backprop)
-            #     sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
-            #     if i % display_step == 0:
-            #         # Calculate batch loss and accuracy
-            #         loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
-            #                                                           y: batch_y})
-            #         print("Iter " + str(i) + ", Minibatch Loss= " + \
-            #               "{:.6f}".format(loss) + ", Training Accuracy= " + \
-            #               "{:.5f}".format(acc))
-            #
+            for i in range(TRAINING_ITERS):
+                batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
+                sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
+                if i % DISPLAY_STEP == 0:
+                    loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.images: batch_x,
+                                                                                self.labels: batch_y})
+                    print("Iter " + str(i) + ", Minibatch Loss= " +
+                          "{:.6f}".format(loss) + ", Training Accuracy= " +
+                          "{:.5f}".format(acc))
+
             #     # vaildate at the end of every epoch
             #     if i % epoch_size == 0:
             #         validation_acc = accuracy.eval(feed_dict={x: mnist.validation.images,
