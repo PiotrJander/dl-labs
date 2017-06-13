@@ -1,5 +1,6 @@
 from __future__ import print_function, generators, division
 
+import argparse
 import os
 import sys
 
@@ -23,8 +24,6 @@ TEST_SIZE = 10000
 
 class Model(object):
     def __init__(self):
-        # self.images = tf.placeholder(tf.float32, [None, 28 ** 2])
-        # self.labels = tf.placeholder(tf.float32, [None, 10])
         self.images = tf.placeholder(tf.float32, [BATCH_SIZE, 28 ** 2])
         self.labels = tf.placeholder(tf.float32, [BATCH_SIZE, 10])
 
@@ -89,46 +88,54 @@ class Model(object):
 
         self.init = [tf.global_variables_initializer(), init_lstm]
 
-        # first_input = tf.random_normal(shape=[BATCH_SIZE, 28])
-        # second_input = tf.random_normal(shape=[BATCH_SIZE, 28])
-        # start_conveyor = tf.random_normal(shape=[BATCH_SIZE, CONVEYOR_SIZE])
-        # start_hidden_state = tf.random_normal(shape=[BATCH_SIZE, HIDDEN_STATE_SIZE])
-        # c, h, init_lstm = lstm(start_conveyor, start_hidden_state, first_input)
-        # _, out, _ = lstm(c, h, second_input, reuse_variables=True)
-        #
-        # self.f = tf.Print(h, [h])
-        # self.s = tf.Print(out, [out])
-        # self.init_lstm = init_lstm
+        self.summary = tf.summary.merge_all()
 
-    def train(self):
+    def train(self, args):
         mnist = input_data.read_data_sets("/tmp/data/", one_hot=True, validation_size=VALIDATION_SIZE)
 
         if not os.path.exists('logs'):
             os.makedirs('logs')
+        if not os.path.exists('save'):
+            os.makedirs('save')
+
+        saver = tf.train.Saver()
 
         with tf.Session() as sess:
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
 
             sess.run(self.init)
 
-            try:
-                for i in range(TRAINING_ITERS):
-                    batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
-                    sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
-                    if i % DISPLAY_STEP == 0:
-                        loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.images: batch_x,
-                                                                                    self.labels: batch_y})
-                        print("Iter " + str(i) + ", Minibatch Loss= " +
-                              "{:.6f}".format(loss) + ", Training Accuracy= " +
-                              "{:.5f}".format(acc))
-                        sys.stdout.flush()
+            if args.init_from is not None:
+                saver.restore(sess, args.init_from)
+                print("Model restored.")
 
-                    # validate at the end of every epoch
-                    if i % EPOCH_SIZE == 0:
-                        print("Validation accuracy %g" % self.validate(mnist.validation, VALIDATION_SIZE))
-            except KeyboardInterrupt:
-                print("Optimization Finished!")
-                print("Test accuracy %g" % self.validate(mnist.test, TEST_SIZE))
+            # try:
+            for i in range(TRAINING_ITERS):
+                batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
+                sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
+                if i % DISPLAY_STEP == 0:
+                    loss, acc, summary = sess.run([self.cost, self.accuracy, self.summary],
+                                                  feed_dict={self.images: batch_x,
+                                                             self.labels: batch_y})
+                    print("Iter " + str(i) + ", Minibatch Loss= " +
+                          "{:.6f}".format(loss) + ", Training Accuracy= " +
+                          "{:.5f}".format(acc))
+                    writer.add_summary(summary, global_step=i)
+                    sys.stdout.flush()
+
+                # validate at the end of every epoch
+                if i % EPOCH_SIZE == 0:
+                    validation_result = self.validate(mnist.validation, VALIDATION_SIZE)
+                    print("Validation accuracy %g" % validation_result)
+                    if validation_result > 0.983:
+                        break
+
+            # except KeyboardInterrupt:
+            print("Optimization Finished!")
+            print("Test accuracy %g" % self.validate(mnist.test, TEST_SIZE))
+
+            save_path = saver.save(sess, "save/model.ckpt")
+            print("Model saved in file: %s" % save_path)
 
     def validate(self, dataset, size):
         acc_list = []
@@ -139,5 +146,15 @@ class Model(object):
         return np.mean(acc_list)
 
 
+def main():
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('--init_from', type=str, default=None,
+                        help="""continue training from saved model at this path. Path must contain files saved 
+                        by previous training process""")
+    args = parser.parse_args()
+    Model().train(args)
+
+
 if __name__ == '__main__':
-    Model().train()
+    main()
