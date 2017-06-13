@@ -5,17 +5,20 @@ import sys
 
 import datetime
 import tensorflow as tf
+import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 
 HIDDEN_STATE_SIZE = 100
 CONCAT_SIZE = HIDDEN_STATE_SIZE + 28
 CONVEYOR_SIZE = 100
 LOG_DIR = 'logs/' + datetime.datetime.now().strftime("%B-%d-%Y;%H:%M")
-BATCH_SIZE = 50
+BATCH_SIZE = 100
 LEARNING_RATE = 1e-3
 TRAINING_ITERS = 20000
 DISPLAY_STEP = 100
 EPOCH_SIZE = 1000
+VALIDATION_SIZE = 5000
+TEST_SIZE = 10000
 
 
 class Model(object):
@@ -98,45 +101,42 @@ class Model(object):
         # self.init_lstm = init_lstm
 
     def train(self):
-        mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+        mnist = input_data.read_data_sets("/tmp/data/", one_hot=True, validation_size=VALIDATION_SIZE)
 
         if not os.path.exists('logs'):
             os.makedirs('logs')
 
         with tf.Session() as sess:
             writer = tf.summary.FileWriter(LOG_DIR, sess.graph)
-            batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
+
             sess.run(self.init)
 
-            # _, cost, acc = sess.run([self.optimizer, self.cost, self.accuracy],
-            #                         feed_dict={self.images: batch_x, self.labels: batch_y})
-            # print(cost, acc)
+            try:
+                for i in range(TRAINING_ITERS):
+                    batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
+                    sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
+                    if i % DISPLAY_STEP == 0:
+                        loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.images: batch_x,
+                                                                                    self.labels: batch_y})
+                        print("Iter " + str(i) + ", Minibatch Loss= " +
+                              "{:.6f}".format(loss) + ", Training Accuracy= " +
+                              "{:.5f}".format(acc))
+                        sys.stdout.flush()
 
-            for i in range(TRAINING_ITERS):
-                batch_x, batch_y = mnist.train.next_batch(BATCH_SIZE)
-                sess.run(self.optimizer, feed_dict={self.images: batch_x, self.labels: batch_y})
-                if i % DISPLAY_STEP == 0:
-                    loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.images: batch_x,
-                                                                                self.labels: batch_y})
-                    print("Iter " + str(i) + ", Minibatch Loss= " +
-                          "{:.6f}".format(loss) + ", Training Accuracy= " +
-                          "{:.5f}".format(acc))
-                    sys.stdout.flush()
+                    # validate at the end of every epoch
+                    if i % EPOCH_SIZE == 0:
+                        print("Validation accuracy %g" % self.validate(mnist.validation, VALIDATION_SIZE))
+            except KeyboardInterrupt:
+                print("Optimization Finished!")
+                print("Test accuracy %g" % self.validate(mnist.test, TEST_SIZE))
 
-            #     # vaildate at the end of every epoch
-            #     if i % epoch_size == 0:
-            #         validation_acc = accuracy.eval(feed_dict={x: mnist.validation.images,
-            #                                                   y: mnist.validation.labels})
-            #         validation_results.append(validation_acc)
-            #         print("Validation accuracy %g" % validation_acc)
-            #
-            #         if validation_acc >= 0.991:
-            #             break
-            #
-            # print("Optimization Finished!")
-            # print("test accuracy %g" % accuracy.eval(feed_dict={
-            #     x: mnist.test.images, y: mnist.test.labels}))
-            # print(validation_results)
+    def validate(self, dataset, size):
+        acc_list = []
+        for _ in range(size // BATCH_SIZE):
+            batch_x, batch_y = dataset.next_batch(BATCH_SIZE)
+            acc = self.accuracy.eval(feed_dict={self.images: batch_x, self.labels: batch_y})
+            acc_list.append(acc)
+        return np.mean(acc_list)
 
 
 if __name__ == '__main__':
